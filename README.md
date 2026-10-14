@@ -8,6 +8,12 @@ tourne en tâche de fond, lit la durée de connexion que FortiClient affiche (ch
 restant dans la **barre supérieure** du bureau et ouvre une fenêtre d'alerte quand il reste **1 h**, puis
 **15 min**, avant la coupure (avec l'heure prévue).
 
+## Aperçu
+
+Indicateur dans la barre supérieure, connecté depuis une demi-heure (il reste 7 h 22 avant la coupure) :
+
+![Indicateur de la barre : horloge et « 7h22 »](docs/images/indicateur-connecte.png)
+
 ## Prérequis
 
 - Ubuntu **22.04 ou plus récent** (glibc 2.35 minimum), avec un environnement graphique (GNOME testé).
