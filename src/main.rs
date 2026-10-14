@@ -1,0 +1,106 @@
+mod config;
+mod session;
+mod tray;
+mod vpn;
+
+use gtk::prelude::*;
+use session::{Alert, Tracker, format_duration};
+use std::env;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tray::{Tray, View};
+
+fn main() {
+    // GTK doit être initialisé avant de créer une fenêtre (échoue s'il n'y a pas d'écran).
+    if let Err(error) = gtk::init() {
+        eprintln!("Impossible d'initialiser GTK : {error}");
+        return;
+    }
+
+    // Mode test : `FORTI_WATCH_TEST_EVERY_MINUTE=1 forti-watch` alerte à chaque minute au lieu de 1 h / 15 min.
+    let mut tracker = if env::var_os("FORTI_WATCH_TEST_EVERY_MINUTE").is_some() {
+        println!("Mode test : une alerte par minute");
+        Tracker::new((1..=session::SESSION_MINUTES).collect())
+    } else {
+        Tracker::default()
+    };
+
+    let cli_path =
+        env::var("FORTI_WATCH_CLI").unwrap_or_else(|_| String::from(config::FORTICLIENT_CLI));
+    // Dernière erreur de lecture affichée : on ne la répète pas à chaque minute.
+    let mut last_error: Option<String> = None;
+    // Sans indicateur (bibliothèque absente), les fenêtres d'alerte continuent de fonctionner.
+    let mut tray = Tray::new();
+
+    let mut check = move || {
+        let now = SystemTime::now();
+        let view = match vpn::read_status(&cli_path) {
+            Ok(status) => {
+                last_error = None;
+                if let Some(alert) = tracker.update(&status, now) {
+                    show_alert(&alert);
+                }
+                match tracker.current(now) {
+                    Some(info) => View::Connected(info),
+                    None => View::Off,
+                }
+            }
+            Err(error) => {
+                if last_error.as_deref() != Some(error.as_str()) {
+                    eprintln!("{error}");
+                    last_error = Some(error);
+                }
+                View::Unknown
+            }
+        };
+
+        if let Some(tray) = tray.as_mut() {
+            let cut_at_text = match &view {
+                View::Connected(info) => clock(info.cut_at),
+                View::Off | View::Unknown => String::new(),
+            };
+            tray.show(&view, &cut_at_text);
+        }
+        gtk::glib::ControlFlow::Continue
+    };
+
+    // Une vérification tout de suite, puis une par minute, dans la boucle d'événements GTK.
+    check();
+    gtk::glib::timeout_add_seconds_local(config::CHECK_INTERVAL_SECONDS, check);
+    gtk::main();
+}
+
+fn show_alert(alert: &Alert) {
+    let message = format!(
+        "Le VPN sera coupé dans {} (vers {}).",
+        format_duration(alert.remaining_minutes),
+        clock(alert.cut_at),
+    );
+    println!("{message}");
+
+    let dialog = gtk::MessageDialog::new(
+        None::<&gtk::Window>,
+        gtk::DialogFlags::empty(),
+        gtk::MessageType::Warning,
+        gtk::ButtonsType::Ok,
+        &message,
+    );
+    dialog.set_title("VPN : coupure imminente");
+    dialog.set_position(gtk::WindowPosition::Center);
+    dialog.set_keep_above(true);
+    // `show()` ne bloque pas : la boucle de vérification continue pendant que la fenêtre est ouverte.
+    dialog.connect_response(|dialog, _| dialog.close());
+    dialog.show();
+}
+
+/// Heure locale `HH:MM` d'un instant donné.
+fn clock(time: SystemTime) -> String {
+    let seconds = time
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+
+    i64::try_from(seconds)
+        .ok()
+        .and_then(|seconds| gtk::glib::DateTime::from_unix_local(seconds).ok())
+        .and_then(|date| date.format("%H:%M").ok())
+        .map_or_else(|| String::from("?"), |formatted| formatted.to_string())
+}
