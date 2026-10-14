@@ -92,6 +92,8 @@ impl Tray {
         menu.append(&quit);
         menu.show_all();
 
+        // Texte provisoire : la barre ignore le tout premier texte posé, elle ne réagit qu'à un changement.
+        indicator.set_label("…", "");
         indicator.set_status(AppIndicatorStatus::Active);
         indicator.set_menu(&mut menu);
 

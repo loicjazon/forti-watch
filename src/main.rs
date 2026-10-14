@@ -5,7 +5,9 @@ mod vpn;
 
 use gtk::prelude::*;
 use session::{Alert, Tracker, format_duration};
+use std::cell::RefCell;
 use std::env;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tray::{Tray, View};
 
@@ -31,7 +33,7 @@ fn main() {
     // Sans indicateur (bibliothèque absente), les fenêtres d'alerte continuent de fonctionner.
     let mut tray = Tray::new();
 
-    let mut check = move || {
+    let check = Rc::new(RefCell::new(move || {
         let now = SystemTime::now();
         let view = match vpn::read_status(&cli_path) {
             Ok(status) => {
@@ -60,12 +62,18 @@ fn main() {
             };
             tray.show(&view, &cut_at_text);
         }
-        gtk::glib::ControlFlow::Continue
-    };
+    }));
 
-    // Une vérification tout de suite, puis une par minute, dans la boucle d'événements GTK.
-    check();
-    gtk::glib::timeout_add_seconds_local(config::CHECK_INTERVAL_SECONDS, check);
+    // Une vérification dès que la boucle tourne (le texte provisoire de l'indicateur est alors remplacé, ce que
+    // la barre affiche), puis une par minute, dans la boucle d'événements GTK.
+    let first_check = Rc::clone(&check);
+    gtk::glib::timeout_add_seconds_local_once(config::FIRST_CHECK_SECONDS, move || {
+        (first_check.borrow_mut())();
+    });
+    gtk::glib::timeout_add_seconds_local(config::CHECK_INTERVAL_SECONDS, move || {
+        (check.borrow_mut())();
+        gtk::glib::ControlFlow::Continue
+    });
     gtk::main();
 }
 
