@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+# Un seul run par tag à la fois (le doublon éventuel attend, puis constate que la release existe).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -56,4 +61,11 @@ jobs:
       - name: Publier la release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        # Idempotent : GitHub peut lancer deux fois le workflow pour un même tag (constaté sur v1.0.0) ;
+        # si la release existe déjà, on se contente de (ré)envoyer les fichiers.
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+          fi

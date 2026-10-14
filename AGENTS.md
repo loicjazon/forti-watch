@@ -81,6 +81,9 @@ Règles de fonctionnement à ne pas casser :
   l'app continue sans indicateur. Un AppIndicator **doit** avoir un menu pour s'afficher. Le texte passe par
   la propriété D-Bus `XAyatanaLabel` (vérifiable avec `busctl --user introspect`). Les barres hors GNOME
   Ubuntu (sans extension AppIndicator) n'affichent rien.
+- **Release lancée deux fois** : sur `v1.0.0`, GitHub a démarré le workflow `Release` en double (même tag, même
+  commit, 2 s d'écart) ; le second run échouait sur « release déjà existante ». L'étape de publication est donc
+  idempotente (`gh release view` puis `upload --clobber` ou `create`), avec un groupe `concurrency` par tag.
 - **Workflows GitHub Actions jamais exécutés avant le premier push** : au premier push puis au premier tag,
   vérifier les runs (`gh run list`), notamment le conteneur `ubuntu:22.04` (actions JavaScript dedans) et rustup.
 
