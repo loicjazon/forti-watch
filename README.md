@@ -10,9 +10,15 @@ restant dans la **barre supérieure** du bureau et ouvre une fenêtre d'alerte q
 
 ## Aperçu
 
-Indicateur dans la barre supérieure, connecté depuis une demi-heure (il reste 7 h 22 avant la coupure) :
+L'indicateur de la barre supérieure, selon la situation :
 
-![Indicateur de la barre : horloge et « 7h22 »](docs/images/indicateur-connecte.png)
+| Connecté (temps restant) | Moins de 15 min | VPN coupé |
+|---|---|---|
+| ![Horloge et « 7h21 »](docs/images/indicateur-connecte.png) | ![Avertissement et « 9 min »](docs/images/indicateur-urgent.png) | ![VPN barré et « VPN off »](docs/images/indicateur-vpn-off.png) |
+
+La fenêtre d'alerte, ouverte 1 h puis 15 min avant la coupure :
+
+![Fenêtre « VPN : coupure imminente »](docs/images/fenetre-alerte.png)
 
 ## Prérequis
 
