@@ -25,6 +25,7 @@ fail() {
 if [ "${1:-}" = "--uninstall" ]; then
   pkill -x forti-watch || true
   rm -f "$BIN_DIR/forti-watch" "$DESKTOP_FILE"
+  rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/forti-watch"
   echo "forti-watch désinstallé."
   exit 0
 fi

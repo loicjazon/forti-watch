@@ -1,4 +1,8 @@
-# forti-watch
+<p align="center">
+  <img src="docs/images/logo.svg" alt="Logo forti-watch : un bouclier avec un cadran" width="120">
+</p>
+
+<h1 align="center">forti-watch</h1>
 
 Petit outil de bureau Linux qui affiche le **temps de connexion restant du VPN FortiClient** et vous
 **prévient avant la coupure** de la session.
@@ -65,14 +69,13 @@ curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.
 
 ### Indicateur de la barre supérieure
 
-Une icône avec un texte, en haut à droite de l'écran, mise à jour chaque minute :
+Le logo de forti-watch suivi d'un texte, en haut à droite de l'écran, mis à jour chaque minute :
 
-| Situation | Icône | Texte |
-|---|---|---|
-| Connecté, plus de 15 min restantes | horloge | `54 min` ou `1h05` (temps restant) |
-| Connecté, 15 min ou moins | avertissement | `12 min` |
-| VPN coupé | VPN barré | `VPN off` |
-| FortiClient illisible | VPN sans route | `VPN ?` |
+| Situation | Texte |
+|---|---|
+| Connecté | `54 min` ou `1h05` (temps restant) |
+| VPN coupé | `VPN off` |
+| FortiClient illisible | `VPN ?` |
 
 Le clic ouvre un menu : heure de coupure, durée de connexion, et **Quitter forti-watch** (il redémarrera à la
 prochaine ouverture de session).
@@ -112,7 +115,7 @@ Organisation du code :
 | Fichier | Rôle |
 |---|---|
 | `src/main.rs` | Boucle GTK (vérification chaque minute) et fenêtre d'alerte |
-| `src/tray.rs` | Indicateur de la barre supérieure (texte, icône et menu : fonctions pures testées) |
+| `src/tray.rs` | Indicateur de la barre supérieure (texte et menu : fonctions pures testées) |
 | `src/session.rs` | Suivi de la session et des seuils (testé) |
 | `src/vpn.rs` | Lecture de `forticlient-cli vpn status` (analyse pure et testée) |
 | `src/config.rs` | Chemin de la CLI, intervalle, durée de session, seuils |

@@ -28,7 +28,7 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | Fichier | Rôle |
 |---|---|
 | `src/main.rs` | Initialise GTK, lance la vérification toutes les minutes (`glib::timeout_add_seconds_local`) et affiche la fenêtre d'alerte (non bloquante) |
-| `src/tray.rs` | `Tray` : indicateur de la barre GNOME (AppIndicator via `libappindicator`). `label`, `icon`, `menu_lines` sont **pures et testées** ; seule la partie GTK ne l'est pas |
+| `src/tray.rs` | `Tray` : indicateur de la barre GNOME (AppIndicator via `libappindicator`). `label`, `menu_lines` sont **pures et testées** ; seule la partie GTK ne l'est pas |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
 | `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils |

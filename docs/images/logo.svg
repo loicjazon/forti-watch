@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="t">
+  <title id="t">forti-watch</title>
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0483C"/>
+      <stop offset="1" stop-color="#BF1F17"/>
+    </linearGradient>
+  </defs>
+  <!-- Bouclier : la protection du VPN -->
+  <path fill="url(#shield)" d="M64 7 108 22.5v39.5c0 29-18.500 47.500-44 59C38.500 109.500 20 91 20 62V22.500Z"/>
+  <!-- Cadran : piste complète + temps restant (3/4 de la session) -->
+  <circle cx="64" cy="66" r="27" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="7"/>
+  <path d="M64 39A27 27 0 1 1 37 66" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <!-- Aiguille : pointe la fin du temps restant -->
+  <path d="M64 51V66H77" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

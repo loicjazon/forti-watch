@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="t">
+  <title id="t">forti-watch</title>
+  <!-- Version monochrome (currentColor) : icône symbolique pour la barre GNOME, 16 à 32 px -->
+  <path d="M64 11 104 25v37c0 26.500-17 43.500-40 54C41 105.500 24 88.500 24 62V25Z"/>
+  <path d="M64 44A22 22 0 1 1 42 66"/>
+  <path d="M64 55V66H73"/>
+</svg>

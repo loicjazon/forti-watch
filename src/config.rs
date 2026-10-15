@@ -8,5 +8,3 @@ pub const CHECK_INTERVAL_SECONDS: u32 = 60;
 pub const SESSION_DURATION: Duration = Duration::from_secs(8 * 60 * 60);
 /// Alertes déclenchées quand il reste 1 h puis 15 min.
 pub const WARNING_THRESHOLDS_MINUTES: [u64; 2] = [60, 15];
-/// En dessous de ce temps restant, l'indicateur de la barre passe en icône d'avertissement.
-pub const URGENT_MINUTES: u64 = 15;

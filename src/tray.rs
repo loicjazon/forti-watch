@@ -1,13 +1,16 @@
-use crate::config::URGENT_MINUTES;
 use crate::session::{SessionInfo, format_duration};
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::PathBuf;
+use std::{env, fs};
 
-const ICON_CONNECTED: &str = "appointment-soon-symbolic";
-const ICON_URGENT: &str = "dialog-warning-symbolic";
-const ICON_OFF: &str = "network-vpn-disabled-symbolic";
-const ICON_UNKNOWN: &str = "network-vpn-no-route-symbolic";
+/// Nom de l'icône (le logo) : un fichier `forti-watch.svg` écrit au lancement dans `icon_dir()`.
+const ICON_NAME: &str = "forti-watch";
+/// Logo en couleur embarqué dans le binaire (distribué seul, sans fichier annexe).
+const ICON_SVG: &str = include_str!("../docs/images/logo.svg");
+/// Icône du thème, utilisée si le logo ne peut pas être écrit sur le disque.
+const FALLBACK_ICON: &str = "appointment-soon-symbolic";
 
 /// Ce que l'indicateur doit montrer.
 pub enum View {
@@ -27,16 +30,6 @@ fn label(view: &View) -> String {
     }
 }
 
-/// Icône (nom du thème) : avertissement quand il reste peu de temps.
-fn icon(view: &View) -> &'static str {
-    match view {
-        View::Connected(info) if info.remaining_minutes <= URGENT_MINUTES => ICON_URGENT,
-        View::Connected(_) => ICON_CONNECTED,
-        View::Off => ICON_OFF,
-        View::Unknown => ICON_UNKNOWN,
-    }
-}
-
 /// Deux lignes d'information du menu ; la seconde est vide quand il n'y a rien à dire.
 /// `cut_at_text` : heure de coupure déjà formatée (`HH:MM`).
 fn menu_lines(view: &View, cut_at_text: &str) -> (String, String) {
@@ -53,6 +46,26 @@ fn menu_lines(view: &View, cut_at_text: &str) -> (String, String) {
     }
 }
 
+/// Dossier où est écrit le logo (`$XDG_DATA_HOME/forti-watch/icons`, par défaut `~/.local/share/...`).
+fn icon_dir() -> Option<PathBuf> {
+    let data_home = match env::var_os("XDG_DATA_HOME") {
+        Some(path) if !path.is_empty() => PathBuf::from(path),
+        _ => PathBuf::from(env::var_os("HOME")?).join(".local/share"),
+    };
+    Some(data_home.join("forti-watch/icons"))
+}
+
+/// Écrit le logo sur le disque (la barre le charge par nom) ; renvoie son dossier, ou `None` en cas d'échec.
+fn write_icon() -> Option<PathBuf> {
+    let dir = icon_dir()?;
+    fs::create_dir_all(&dir).ok()?;
+    let file = dir.join(format!("{ICON_NAME}.svg"));
+    if fs::read_to_string(&file).ok().as_deref() != Some(ICON_SVG) {
+        fs::write(&file, ICON_SVG).ok()?;
+    }
+    Some(dir)
+}
+
 /// Indicateur dans la barre supérieure du bureau (StatusNotifier / AppIndicator).
 pub struct Tray {
     indicator: AppIndicator,
@@ -63,8 +76,10 @@ pub struct Tray {
 impl Tray {
     /// `None` si la bibliothèque appindicator n'est pas installée (l'app continue sans indicateur).
     pub fn new() -> Option<Self> {
-        let created = catch_unwind(AssertUnwindSafe(|| {
-            AppIndicator::new("forti-watch", ICON_UNKNOWN)
+        let icon_dir = write_icon();
+        let created = catch_unwind(AssertUnwindSafe(|| match &icon_dir {
+            Some(dir) => AppIndicator::with_path("forti-watch", ICON_NAME, &dir.to_string_lossy()),
+            None => AppIndicator::new("forti-watch", FALLBACK_ICON),
         }));
         let mut indicator = match created {
             Ok(indicator) => indicator,
@@ -104,9 +119,8 @@ impl Tray {
         })
     }
 
-    /// Met à jour le texte, l'icône et le menu.
+    /// Met à jour le texte et le menu (l'icône est toujours le logo).
     pub fn show(&mut self, view: &View, cut_at_text: &str) {
-        self.indicator.set_icon_full(icon(view), "forti-watch");
         self.indicator.set_label(&label(view), "");
 
         let (first, second) = menu_lines(view, cut_at_text);
@@ -152,23 +166,6 @@ mod tests {
     #[test]
     fn label_when_the_state_is_unknown() {
         assert_eq!(label(&View::Unknown), "VPN ?");
-    }
-
-    #[test]
-    fn icon_is_a_clock_while_there_is_time() {
-        assert_eq!(icon(&connected(URGENT_MINUTES + 1, 300)), ICON_CONNECTED);
-    }
-
-    #[test]
-    fn icon_is_a_warning_when_time_is_short() {
-        assert_eq!(icon(&connected(URGENT_MINUTES, 465)), ICON_URGENT);
-        assert_eq!(icon(&connected(0, 480)), ICON_URGENT);
-    }
-
-    #[test]
-    fn icon_when_the_vpn_is_off_or_unknown() {
-        assert_eq!(icon(&View::Off), ICON_OFF);
-        assert_eq!(icon(&View::Unknown), ICON_UNKNOWN);
     }
 
     #[test]
