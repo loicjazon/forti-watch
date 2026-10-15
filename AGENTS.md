@@ -32,6 +32,7 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
 | `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils |
+| `docs/index.html` | Page vitrine GitHub Pages (`main` / `/docs`) : HTML + CSS inline, sans build, images dans `docs/images/`. La commande d'installation y est dupliquée du README : les garder identiques |
 | `install.sh` | Installateur POSIX `sh` : télécharge `releases/latest/download/…` (surchargeable par `FORTI_WATCH_DOWNLOAD_URL`, utile pour tester), vérifie le SHA-256, installe, active l'autostart |
 | `.github/workflows/ci.yml` | Tests (fmt, clippy `-D warnings`, test) dans un conteneur `ubuntu:22.04` sur push / PR vers `main` |
 | `.github/workflows/release.yml` | Sur tag `v*` : vérifie tag = version de `Cargo.toml`, compile dans `ubuntu:22.04`, publie binaire + `.sha256` via `gh release create` |

@@ -8,6 +8,8 @@ tourne en tâche de fond, lit la durée de connexion que FortiClient affiche (ch
 restant dans la **barre supérieure** du bureau et ouvre une fenêtre d'alerte quand il reste **1 h**, puis
 **15 min**, avant la coupure (avec l'heure prévue).
 
+Page de présentation : <https://loicjazon.github.io/forti-watch/>
+
 ## Aperçu
 
 L'indicateur de la barre supérieure, selon la situation :

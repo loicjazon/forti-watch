@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>forti-watch : le temps restant de votre session VPN</title>
+<meta name="description" content="Outil Linux qui affiche le temps restant de la session VPN FortiClient dans la barre GNOME et prévient 1 h puis 15 min avant la coupure.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1b1f24;
+    --muted: #5b6573;
+    --border: #dde1e7;
+    --accent: #c2410c;
+    --code-bg: #14181d;
+    --code-text: #e6edf3;
+    --shot-bg: #14181d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --surface: #171b21;
+      --text: #e8ecf1;
+      --muted: #9aa5b4;
+      --border: #272d36;
+      --accent: #fb923c;
+      --code-bg: #0a0d10;
+      --code-text: #e6edf3;
+      --shot-bg: #0a0d10;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+  header.hero { padding: 64px 0 40px; text-align: center; }
+  .hero h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .hero h1 span { color: var(--accent); }
+  .hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 36em; margin: 0 auto 28px; }
+  .install {
+    display: flex; align-items: stretch; max-width: 100%;
+    margin: 0 auto 14px; border-radius: 10px; overflow: hidden;
+    background: var(--code-bg); text-align: left;
+  }
+  .install code {
+    flex: 1; min-width: 0; padding: 14px 16px; color: var(--code-text);
+    font: 0.9rem/1.5 ui-monospace, "Ubuntu Mono", Menlo, Consolas, monospace;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .install button {
+    border: 0; border-left: 1px solid #2a313a; background: #1f252d; color: #e6edf3;
+    padding: 0 18px; font: inherit; font-size: 0.9rem; cursor: pointer;
+  }
+  .install button:hover { background: #2a313a; }
+  .install button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .links { margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.95rem;
+  }
+  .btn:hover { border-color: var(--accent); }
+  section { padding: 36px 0; }
+  h2 { font-size: 1.5rem; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+  figure { margin: 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    height: 100%;
+  }
+  .shot {
+    background: var(--shot-bg); border-radius: 8px; padding: 12px;
+    display: flex; align-items: center; justify-content: center; min-height: 120px;
+  }
+  .states .shot { height: 120px; }
+  .shot img { max-width: 100%; height: auto; display: block; }
+  figcaption { margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
+  figcaption strong { color: var(--text); display: block; font-size: 1rem; }
+  .alert-card { margin-top: 16px; display: grid; gap: 20px; grid-template-columns: auto 1fr; align-items: center; }
+  .alert-card .shot { padding: 12px; }
+  .alert-card figcaption { margin: 0; }
+  @media (max-width: 640px) { .alert-card { grid-template-columns: 1fr; } }
+  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 14px; }
+  ol.steps li {
+    counter-increment: step; position: relative; padding: 14px 16px 14px 56px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  }
+  ol.steps li::before {
+    content: counter(step); position: absolute; left: 16px; top: 14px;
+    width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--bg);
+    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
+  }
+  ul.req { margin: 0; padding-left: 1.2em; }
+  ul.req li { margin: 6px 0; }
+  footer { border-top: 1px solid var(--border); padding: 28px 0 48px; color: var(--muted); font-size: 0.92rem; }
+  footer p { margin: 6px 0; }
+  code.inline {
+    font: 0.88em ui-monospace, "Ubuntu Mono", Menlo, Consolas, monospace;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <h1>forti<span>-watch</span></h1>
+    <p class="lead">Le temps restant de votre session VPN FortiClient, dans la barre GNOME, avec une alerte avant la coupure.</p>
+    <div class="install">
+      <code id="cmd">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh</code>
+      <button type="button" id="copy" aria-label="Copier la commande d'installation">Copier</button>
+    </div>
+    <p class="hint">Sans <code class="inline">sudo</code> · installe dans <code class="inline">~/.local/bin</code> · démarre à chaque ouverture de session</p>
+    <div class="links">
+      <a class="btn" href="https://github.com/loicjazon/forti-watch">Voir sur GitHub</a>
+      <a class="btn" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="apercu">
+    <h2>Aperçu</h2>
+    <p class="sub">Une icône et un texte en haut à droite de l'écran, mis à jour chaque minute.</p>
+    <div class="states">
+      <figure class="card">
+        <div class="shot"><img src="images/indicateur-connecte.png" width="225" height="93" alt="Icône d'horloge et texte « 7h21 »"></div>
+        <figcaption><strong>Connecté</strong>Le temps restant avant la coupure de la session.</figcaption>
+      </figure>
+      <figure class="card">
+        <div class="shot"><img src="images/indicateur-urgent.png" width="228" height="93" alt="Icône d'avertissement et texte « 9 min »"></div>
+        <figcaption><strong>15 min ou moins</strong>L'icône passe en avertissement.</figcaption>
+      </figure>
+      <figure class="card">
+        <div class="shot"><img src="images/indicateur-vpn-off.png" width="282" height="93" alt="Icône de VPN barré et texte « VPN off »"></div>
+        <figcaption><strong>VPN coupé</strong>La prochaine connexion repart de zéro.</figcaption>
+      </figure>
+    </div>
+    <figure class="card alert-card">
+      <div class="shot"><img src="images/fenetre-alerte.png" width="436" height="149" alt="Fenêtre « VPN : coupure imminente » : le VPN sera coupé dans 1h00"></div>
+      <figcaption><strong>Une alerte à 1 h, puis à 15 min</strong>Une fenêtre s'ouvre au premier plan avec l'heure prévue de la coupure, pour avoir le temps d'enregistrer son travail.</figcaption>
+    </figure>
+  </section>
+
+  <section id="fonctionnement">
+    <h2>Comment ça marche</h2>
+    <p class="sub">Aucun réglage : il se lance tout seul et se fait oublier.</p>
+    <ol class="steps">
+      <li>Chaque minute, il lit la <strong>durée de connexion</strong> que FortiClient affiche. La fin de session est donc exacte, même s'il démarre en cours de route.</li>
+      <li>Il affiche le <strong>temps restant</strong> avant la coupure (session de 8 h) dans la barre supérieure.</li>
+      <li>Il ouvre une <strong>alerte</strong> quand il reste 1 h, puis 15 min.</li>
+    </ol>
+  </section>
+
+  <section id="prerequis">
+    <h2>Prérequis</h2>
+    <ul class="req">
+      <li>Ubuntu 22.04 ou plus récent, avec un bureau graphique (GNOME testé).</li>
+      <li>FortiClient installé dans <code class="inline">/opt/forticlient/</code> (testé avec la 7.4.3).</li>
+      <li>L'extension GNOME « AppIndicator » (activée par défaut sur Ubuntu) pour l'icône de la barre.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Documentation complète, limites et développement : <a href="https://github.com/loicjazon/forti-watch#readme">README</a>.</p>
+    <p>Désinstaller : <code class="inline">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh -s -- --uninstall</code></p>
+    <p>Licence <a href="https://github.com/loicjazon/forti-watch/blob/main/LICENSE">MIT</a>.</p>
+  </div>
+</footer>
+
+<script>
+  var button = document.getElementById('copy');
+  button.addEventListener('click', function () {
+    var text = document.getElementById('cmd').textContent;
+    var done = function () {
+      button.textContent = 'Copié ✓';
+      setTimeout(function () { button.textContent = 'Copier'; }, 2000);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(done, function () {});
+    }
+  });
+</script>
+</body>
+</html>
