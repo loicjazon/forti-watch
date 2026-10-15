@@ -43,7 +43,7 @@
   header.hero { padding: 64px 0 40px; text-align: center; }
   .hero h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 12px; letter-spacing: -0.02em; }
   .hero h1 span { color: var(--accent); }
-  .hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 36em; margin: 0 auto 28px; }
+  .hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 36em; margin: 0 auto 28px; text-wrap: balance; }
   .install {
     display: flex; align-items: stretch; max-width: 100%;
     margin: 0 auto 14px; border-radius: 10px; overflow: hidden;
@@ -113,7 +113,7 @@
 <header class="hero">
   <div class="wrap">
     <h1>forti<span>-watch</span></h1>
-    <p class="lead">Le temps restant de votre session VPN FortiClient, avec une alerte avant la coupure.</p>
+    <p class="lead">Le temps restant de votre session VPN FortiClient, avec une alerte avant la&nbsp;coupure.</p>
     <div class="install">
       <code id="cmd">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh</code>
       <button type="button" id="copy" aria-label="Copier la commande d'installation">Copier</button>
