@@ -1,7 +1,12 @@
 //! Outils partagés par les tests.
 
 use std::fs;
+use std::io::ErrorKind;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 /// Dossier temporaire propre à un test, supprimé à la fin (même si le test échoue).
 pub struct TestDir(PathBuf);
@@ -26,6 +31,21 @@ impl TestDir {
         fs::create_dir_all(path.parent().expect("fichier dans un dossier"))
             .expect("création des dossiers parents");
         fs::write(&path, content).expect("écriture du fichier de test");
+        path
+    }
+
+    /// Écrit un script `sh` exécutable et renvoie son chemin.
+    ///
+    /// Le script est lancé une première fois (son corps ne doit donc pas avoir d'effet de bord) : un
+    /// processus lancé au même moment par un autre test peut hériter du fichier encore ouvert en écriture,
+    /// et Linux refuse de l'exécuter (« Text file busy ») tant que ce processus n'a pas fait son `exec`.
+    pub fn write_script(&self, relative_path: &str, body: &str) -> PathBuf {
+        let path = self.write(relative_path, &format!("#!/bin/sh\n{body}\n"));
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).expect("script exécutable");
+        while let Err(error) = Command::new(&path).output() {
+            assert_eq!(error.kind(), ErrorKind::ExecutableFileBusy, "{error}");
+            thread::sleep(Duration::from_millis(1));
+        }
         path
     }
 }

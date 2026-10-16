@@ -85,6 +85,7 @@ fn parse_duration(text: &str) -> Option<Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::TestDir;
 
     const CONNECTED_OUTPUT: &str = "Status: Connected
   VPN name: Corp
@@ -170,5 +171,93 @@ mod tests {
     #[test]
     fn duration_with_wrong_number_of_parts_is_unexpected() {
         assert_eq!(parse_status("Status: Connected\n  Duration: 07:02\n"), None);
+    }
+
+    /// Faux `forticlient-cli` : un script `sh` dont le corps imite la sortie de la vraie CLI.
+    fn fake_cli(dir: &TestDir, body: &str) -> String {
+        dir.write_script("forticlient-cli", body)
+            .to_str()
+            .expect("chemin lisible")
+            .to_owned()
+    }
+
+    #[test]
+    fn read_status_reads_the_standard_output() {
+        // Arrange
+        let dir = TestDir::new("vpn-stdout");
+        let cli_path = fake_cli(&dir, &format!("printf '%s' '{CONNECTED_OUTPUT}'"));
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        assert_eq!(status.ok(), connected_since(7 * 3600 + 2 * 60 + 40));
+    }
+
+    #[test]
+    fn read_status_reads_the_error_output_when_the_standard_output_is_empty() {
+        // Arrange
+        let dir = TestDir::new("vpn-stderr");
+        let cli_path = fake_cli(&dir, "echo 'Status: Not Running' >&2");
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        assert_eq!(status, Ok(Status::Disconnected));
+    }
+
+    #[test]
+    fn read_status_reads_the_output_even_when_the_cli_fails() {
+        // Arrange
+        let dir = TestDir::new("vpn-exit-code");
+        let cli_path = fake_cli(&dir, "echo 'Status: Not Running'\nexit 1");
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        assert_eq!(status, Ok(Status::Disconnected));
+    }
+
+    #[test]
+    fn read_status_of_a_missing_cli_is_an_error_not_a_disconnection() {
+        // Arrange
+        let dir = TestDir::new("vpn-missing");
+        let cli_path = dir.path().join("absente").display().to_string();
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        assert!(status.is_err());
+    }
+
+    #[test]
+    fn read_status_of_an_unexpected_output_is_an_error() {
+        // Arrange
+        let dir = TestDir::new("vpn-unexpected");
+        let cli_path = fake_cli(&dir, "echo 'Bonjour'");
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        let error = status.expect_err("sortie inattendue");
+        assert!(error.contains("sortie inattendue"), "{error}");
+    }
+
+    #[test]
+    fn read_status_of_a_failing_cli_reports_its_error_output() {
+        // Arrange
+        let dir = TestDir::new("vpn-failing");
+        let cli_path = fake_cli(&dir, "echo 'démon injoignable' >&2\nexit 3");
+
+        // Act
+        let status = read_status(&cli_path);
+
+        // Assert
+        let error = status.expect_err("CLI en échec");
+        assert!(error.contains("démon injoignable"), "{error}");
     }
 }

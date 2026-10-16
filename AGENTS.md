@@ -35,7 +35,7 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | `src/main.rs` | Initialise GTK, lance la vérification toutes les minutes (`glib::timeout_add_seconds_local`) et affiche la fenêtre d'alerte (non bloquante) |
 | `src/tray.rs` | `Tray` : indicateur de la barre GNOME (AppIndicator via `libappindicator`). `label`, `menu_lines` sont **pures et testées** ; seule la partie GTK ne l'est pas |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
-| `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
+| `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` (testé avec de faux scripts `sh`) ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
 | `src/update.rs` | Mise à jour automatique. `Version`, `parse_latest_tag`, `is_newer`, `can_restart` sont **purs et testés** ; `check_and_install` = `find_latest` (redirection, non testé) + `install` (curl + `sha256sum`, sans dépendance ajoutée, testé avec une fausse release en `file://`) ; `Updater` (thread + `mpsc`, relance par `exec`) est en périphérie |
 | `src/test_support.rs` | Outils des tests uniquement (`#[cfg(test)]`) : `TestDir`, dossier temporaire supprimé à la fin du test |
 | `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils, dépôt et cadence de mise à jour |
@@ -98,6 +98,10 @@ Règles de fonctionnement à ne pas casser :
 - **`current_exe()` après une mise à jour** : le binaire remplacé par `rename`, Linux renvoie `… (deleted)`. `Updater`
   lit donc le chemin au démarrage. Un test de bout en bout demande ~2 min : la recherche part au tick de 60 s, son
   résultat n'est lu au tick suivant (`timeout 140`), et l'instance doit tourner depuis une **copie** du binaire.
+- **« Text file busy » dans les tests** : exécuter un script juste écrit échoue parfois (ETXTBSY), car un
+  processus lancé au même moment par un autre test hérite du fichier encore ouvert en écriture. Passer par
+  `TestDir::write_script`, qui lance le script une première fois jusqu'à réussir. Vérifier l'absence de test
+  instable en lançant la suite en boucle (`for run in $(seq 1 100); do cargo test -q || break; done`).
 - **Release lancée deux fois** : sur `v1.0.0`, GitHub a démarré le workflow `Release` en double (même tag, même
   commit, 2 s d'écart) ; le second run échouait sur « release déjà existante ». L'étape de publication est donc
   idempotente (`gh release view` puis `upload --clobber` ou `create`), avec un groupe `concurrency` par tag.
