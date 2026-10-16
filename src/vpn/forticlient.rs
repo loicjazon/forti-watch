@@ -1,15 +1,8 @@
+//! FortiClient sous Linux : `forticlient-cli vpn status`.
+
+use super::Status;
 use std::process::Command;
 use std::time::Duration;
-
-/// État du VPN tel que rapporté par FortiClient.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Status {
-    /// Connecté depuis `elapsed` (la « Duration » affichée par FortiClient).
-    Connected {
-        elapsed: Duration,
-    },
-    Disconnected,
-}
 
 /// Interroge `forticlient-cli vpn status`.
 ///
