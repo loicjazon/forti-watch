@@ -88,6 +88,7 @@
   figcaption strong { color: var(--text); display: block; font-size: 1rem; }
   .alert-card { margin-top: 16px; display: grid; gap: 20px; grid-template-columns: auto 1fr; align-items: center; }
   .alert-card .shot { padding: 12px; }
+  .alert-card .shot img { border-radius: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); }
   .alert-card figcaption { margin: 0; }
   @media (max-width: 640px) { .alert-card { grid-template-columns: 1fr; } }
   ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 14px; }
@@ -148,7 +149,7 @@
       </figure>
     </div>
     <figure class="card alert-card">
-      <div class="shot"><img src="images/fenetre-alerte.png" width="436" height="149" alt="Fenêtre « VPN : coupure imminente » : le VPN sera coupé dans 1h00"></div>
+      <div class="shot"><img src="images/fenetre-alerte.png" width="295" height="287" alt="Fenêtre « Coupure du VPN imminente » : 1h00 restantes"></div>
       <figcaption><strong>Une alerte à 1 h, puis à 15 min</strong>Une fenêtre s'ouvre au premier plan avec l'heure prévue de la coupure, pour avoir le temps d'enregistrer son travail.</figcaption>
     </figure>
   </section>

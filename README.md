@@ -24,7 +24,7 @@ L'indicateur de la barre supérieure, selon la situation :
 
 La fenêtre d'alerte, ouverte 1 h puis 15 min avant la coupure :
 
-![Fenêtre « VPN : coupure imminente »](docs/images/fenetre-alerte.png)
+![Fenêtre « Coupure du VPN imminente » : 1h00 restantes](docs/images/fenetre-alerte.png)
 
 ## Prérequis
 
