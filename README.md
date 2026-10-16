@@ -20,7 +20,7 @@ L'indicateur de la barre supérieure, selon la situation :
 
 | Connecté (temps restant) | Moins de 15 min | VPN coupé |
 |---|---|---|
-| ![Horloge et « 7h21 »](docs/images/indicateur-connecte.png) | ![Avertissement et « 9 min »](docs/images/indicateur-urgent.png) | ![VPN barré et « VPN off »](docs/images/indicateur-vpn-off.png) |
+| ![Logo et « 7h21 »](docs/images/indicateur-connecte.png) | ![Logo et « 9 min »](docs/images/indicateur-urgent.png) | ![Logo et « VPN off »](docs/images/indicateur-vpn-off.png) |
 
 La fenêtre d'alerte, ouverte 1 h puis 15 min avant la coupure :
 
