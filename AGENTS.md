@@ -39,7 +39,7 @@ dossier monté pour ne pas mélanger les `target/`).
 |---|---|
 | `src/main.rs` | Commun : construit la vérification de chaque minute (VPN, `Tracker`, indicateur, alerte, `Updater`) et la passe à `platform::run`. `platform` = `src/linux/` ou `src/macos/` selon `#[cfg(target_os)]` (`#[path]`) |
 | `src/linux/` | GTK : `run` (`gtk::init` puis `glib::timeout_add_seconds_local`), `Tray` (AppIndicator via `libappindicator`), `alert` (fenêtre personnalisée non bloquante), `clock` |
-| `src/macos/` | AppKit (`objc2`) : `run` (`NSApplication` « accessoire », sans Dock, `NSTimer` en `NSRunLoopCommonModes`), `Tray` (`NSStatusItem` + SF Symbol `timer`), `alert` (`NSAlert` ouverte par un `NSTimer` de 0 s), `clock` (`libc::localtime_r`) |
+| `src/macos/` | AppKit (`objc2`) : `run` (`NSApplication` « accessoire », sans Dock, `NSTimer` en `NSRunLoopCommonModes`), `Tray` (`NSStatusItem` + `logo-mono.svg` en image « template »), `alert` (`NSAlert` avec `logo.svg`, ouverte par un `NSTimer` de 0 s, une seule à la fois), `clock` (`libc::localtime_r`) |
 | `src/tray.rs` | Commun : `View`, `label`, `menu_lines`, **pures et testées** |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn/` | `mod.rs` : `Status` et `read_status(cli, now)` de l'OS courant. `forticlient.rs` (Linux) : lance `forticlient-cli vpn status`, `parse_status` en extrait `Status::Connected { elapsed }` ou `Disconnected`. `scutil.rs` (macOS) : `parse_service_id`, `parse_scutil` (purs, **compilés et testés sur les deux OS**), `read_status` (faux scripts `sh`, macOS seulement) qui convertit `LastStatusChangeTime` par `mktime` |
@@ -97,7 +97,10 @@ Règles de fonctionnement à ne pas casser :
   le reste = `Err`. L'UUID du service est propre à chaque Mac : relu à chaque tick dans `scutil --nc list`.
 - **Alerte macOS** : `NSAlert::runModal` bloque ; elle est donc ouverte par un `NSTimer` de 0 s, hors de la
   vérification (sinon `RefCell` déjà emprunté), et les minuteurs tournent en `NSRunLoopCommonModes` pour continuer
-  pendant l'alerte. Une app « accessoire » doit s'activer (`activateIgnoringOtherApps`) pour passer devant.
+  pendant l'alerte. **Jamais deux `runModal` imbriqués** : chacun lance une boucle dans la précédente, et le mode
+  test (une alerte par minute, non fermées) a planté après ~270 niveaux (SIGILL dans `CFRunLoopRunSpecific`).
+  Une alerte qui arrive pendant qu'une autre est ouverte met à jour son texte (`OPEN_ALERT`). Sans `setIcon`, un
+  binaire seul (sans `.app`) a l'icône d'un dossier. Une app « accessoire » doit s'activer (`activateIgnoringOtherApps`) pour passer devant.
 - **Capture d'écran sur macOS** : sans la permission « Enregistrement de l'écran » pour le terminal,
   `screencapture` ne rend que le fond d'écran : vérifier l'indicateur et l'alerte à l'œil.
 - **`rfd` abandonné** : son backend par défaut exige `libwayland-dev`, et son backend « portail XDG » est

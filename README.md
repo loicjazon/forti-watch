@@ -27,7 +27,8 @@ L'indicateur de la barre supérieure, selon la situation :
 | ![Logo et « 7h21 »](docs/images/indicateur-connecte.svg) | ![Logo et « 9 min »](docs/images/indicateur-urgent.svg) | ![Logo et « VPN off »](docs/images/indicateur-vpn-off.svg) |
 
 La fenêtre d'alerte, ouverte 1 h puis 15 min avant la coupure (sous Linux ; sur Mac, c'est une alerte
-standard de macOS avec les mêmes informations) :
+standard de macOS avec le logo et les mêmes informations ; une seule à la fois, mise à jour si une autre
+arrive) :
 
 ![Fenêtre « Coupure du VPN imminente » : 1h00 restantes](docs/images/fenetre-alerte.png)
 
@@ -98,7 +99,7 @@ curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.
 
 ### Indicateur de la barre supérieure
 
-Le logo de forti-watch (un minuteur sur Mac) suivi d'un texte, en haut à droite de l'écran, mis à jour chaque
+Le logo de forti-watch suivi d'un texte, en haut à droite de l'écran, mis à jour chaque
 minute :
 
 | Situation | Texte |
