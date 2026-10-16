@@ -31,7 +31,8 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | `src/tray.rs` | `Tray` : indicateur de la barre GNOME (AppIndicator via `libappindicator`). `label`, `menu_lines` sont **pures et testées** ; seule la partie GTK ne l'est pas |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
-| `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils |
+| `src/update.rs` | Mise à jour automatique. `Version`, `parse_latest_tag`, `is_newer`, `can_restart` sont **purs et testés** ; `check_and_install` (curl + `sha256sum`, sans dépendance ajoutée) et `Updater` (thread + `mpsc`, relance par `exec`) sont en périphérie |
+| `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils, dépôt et cadence de mise à jour |
 | `docs/index.html` | Page vitrine GitHub Pages (`main` / `/docs`) : HTML + CSS inline, sans build, images dans `docs/images/`. La commande d'installation y est dupliquée du README : les garder identiques |
 | `install.sh` | Installateur POSIX `sh` : télécharge `releases/latest/download/…` (surchargeable par `FORTI_WATCH_DOWNLOAD_URL`, utile pour tester), vérifie le SHA-256, installe, active l'autostart |
 | `.github/workflows/ci.yml` | Tests (fmt, clippy `-D warnings`, test) dans un conteneur `ubuntu:22.04` sur push / PR vers `main` |
@@ -43,6 +44,11 @@ Règles de fonctionnement à ne pas casser :
   si plusieurs seuils sont franchis d'un coup, une seule alerte.
 - Une erreur de lecture de la CLI (`Err`) veut dire « état inconnu », **pas** « déconnecté » : on garde
   l'état et on n'affiche l'erreur qu'une fois.
+- Mise à jour auto : la dernière version se lit dans la redirection de `…/releases/latest` (pas d'API GitHub), le
+  binaire est téléchargé à côté de l'exécutable puis renommé par-dessus (atomique), SHA-256 obligatoire, échec =
+  binaire intact. La relance (`exec`) est **différée** quand la session a ≤ 60 min restantes : le `Tracker` repart de
+  zéro et rejouerait une alerte. Désactivée par `FORTI_WATCH_NO_UPDATE`, en mode test, et en build debug sauf si
+  `FORTI_WATCH_UPDATE_URL` est défini (URL de base, pour tester avec un faux serveur de releases).
 - Garder la logique dans `session.rs` (testable) et l'IHM/processus en périphérie (`main.rs`, `vpn.rs`).
 - Les seuils sont injectables dans `Tracker::new` (c'est ce qui permet le mode test sans toucher aux constantes).
 
@@ -82,6 +88,9 @@ Règles de fonctionnement à ne pas casser :
   l'app continue sans indicateur. Un AppIndicator **doit** avoir un menu pour s'afficher. Le texte passe par
   la propriété D-Bus `XAyatanaLabel` (vérifiable avec `busctl --user introspect`). Les barres hors GNOME
   Ubuntu (sans extension AppIndicator) n'affichent rien.
+- **`current_exe()` après une mise à jour** : le binaire remplacé par `rename`, Linux renvoie `… (deleted)`. `Updater`
+  lit donc le chemin au démarrage. Un test de bout en bout demande ~2 min : la recherche part au tick de 60 s, son
+  résultat n'est lu au tick suivant (`timeout 140`), et l'instance doit tourner depuis une **copie** du binaire.
 - **Release lancée deux fois** : sur `v1.0.0`, GitHub a démarré le workflow `Release` en double (même tag, même
   commit, 2 s d'écart) ; le second run échouait sur « release déjà existante ». L'étape de publication est donc
   idempotente (`gh release view` puis `upload --clobber` ou `create`), avec un groupe `concurrency` par tag.

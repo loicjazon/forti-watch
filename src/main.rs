@@ -1,6 +1,7 @@
 mod config;
 mod session;
 mod tray;
+mod update;
 mod vpn;
 
 use gtk::prelude::*;
@@ -8,8 +9,9 @@ use session::{Alert, Tracker, format_duration};
 use std::cell::RefCell;
 use std::env;
 use std::rc::Rc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tray::{Tray, View};
+use update::Updater;
 
 fn main() {
     // GTK doit être initialisé avant de créer une fenêtre (échoue s'il n'y a pas d'écran).
@@ -32,6 +34,8 @@ fn main() {
     let mut last_error: Option<String> = None;
     // Sans indicateur (bibliothèque absente), les fenêtres d'alerte continuent de fonctionner.
     let mut tray = Tray::new();
+    // `None` quand la mise à jour automatique est désactivée (voir `Updater::from_env`).
+    let mut updater = Updater::from_env(Instant::now());
 
     let check = Rc::new(RefCell::new(move || {
         let now = SystemTime::now();
@@ -54,6 +58,11 @@ fn main() {
                 View::Unknown
             }
         };
+
+        if let Some(updater) = updater.as_mut() {
+            let remaining_minutes = tracker.current(now).map(|info| info.remaining_minutes);
+            updater.poll(Instant::now(), remaining_minutes);
+        }
 
         if let Some(tray) = tray.as_mut() {
             let cut_at_text = match &view {

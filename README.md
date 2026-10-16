@@ -52,6 +52,19 @@ Le script, sans `sudo` :
 Relancer la même commande met à jour vers la dernière version. Vous pouvez lire le script avant de l'exécuter :
 [`install.sh`](install.sh).
 
+## Mise à jour automatique
+
+Une fois installé, `forti-watch` se met à jour tout seul : 30 secondes après son démarrage puis toutes les 6 h, il
+cherche une release plus récente sur GitHub, télécharge le binaire, **vérifie son empreinte SHA-256**, remplace
+`~/.local/bin/forti-watch` et se relance. En cas d'échec (réseau, empreinte différente), la version installée reste
+intacte et l'essai est renouvelé plus tard.
+
+- Pour ne pas rejouer une alerte, la relance attend la fin de la session VPN quand il reste moins d'une heure ;
+  sinon elle a lieu à la prochaine ouverture de session.
+- Désactiver : définir `FORTI_WATCH_NO_UPDATE=1` dans l'environnement du lancement.
+- Les versions antérieures à cette fonction ne savent pas se mettre à jour : relancez une fois la commande
+  d'installation.
+
 ## Désinstallation
 
 ```bash
