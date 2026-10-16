@@ -276,6 +276,7 @@ impl Drop for TempDir {
 mod tests {
     use super::*;
     use crate::test_support::TestDir;
+    use std::time::Duration;
 
     const OLD_BINARY: &str = "ancien binaire";
     const NEW_BINARY: &str = "nouveau binaire";
@@ -495,5 +496,153 @@ mod tests {
         assert!(can_restart(Some(61)));
         assert!(!can_restart(Some(60)));
         assert!(!can_restart(Some(10)));
+    }
+
+    /// `Updater` sans danger : la recherche vise une URL qui n'existe pas et la relance un exécutable absent
+    /// (un `exec` réussi remplacerait le processus de test). Prochaine recherche dans une heure.
+    fn safe_updater(now: Instant) -> Updater {
+        Updater {
+            base_url: String::from("file:///forti-watch-test/introuvable"),
+            exe_path: PathBuf::from("/forti-watch-test/introuvable/forti-watch"),
+            current: version("1.0.0"),
+            next_check: now + Duration::from_secs(3600),
+            running: None,
+            installed: false,
+            last_error: None,
+        }
+    }
+
+    /// Recherche déjà terminée, dont le résultat attend d'être lu par `poll`.
+    fn finished_search(result: CheckResult) -> Receiver<CheckResult> {
+        let (sender, receiver) = mpsc::channel();
+        sender.send(result).expect("envoi du résultat");
+        receiver
+    }
+
+    #[test]
+    fn poll_does_not_search_before_the_check_is_due() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+
+        // Act
+        updater.poll(now, None);
+
+        // Assert
+        assert!(updater.running.is_none());
+    }
+
+    #[test]
+    fn poll_starts_a_search_when_the_check_is_due() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        updater.next_check = now;
+
+        // Act
+        updater.poll(now, None);
+
+        // Assert
+        assert!(updater.running.is_some());
+        assert_eq!(updater.next_check, now + UPDATE_CHECK_INTERVAL);
+    }
+
+    #[test]
+    fn poll_does_not_search_again_while_a_new_binary_waits() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        updater.next_check = now;
+        updater.installed = true;
+
+        // Act : 10 min restantes, la relance est différée.
+        updater.poll(now, Some(10));
+
+        // Assert
+        assert!(updater.running.is_none());
+    }
+
+    #[test]
+    fn poll_defers_the_restart_while_one_hour_or_less_remains() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        updater.installed = true;
+
+        // Act
+        updater.poll(now, Some(60));
+
+        // Assert : aucune relance tentée, le binaire attend toujours.
+        assert!(updater.installed);
+    }
+
+    #[test]
+    fn poll_restarts_when_more_than_one_hour_remains() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        updater.installed = true;
+
+        // Act
+        updater.poll(now, Some(61));
+
+        // Assert : la relance a été tentée (et a échoué, l'exécutable n'existant pas).
+        assert!(!updater.installed);
+    }
+
+    #[test]
+    fn poll_reads_the_result_of_a_finished_search() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        updater.running = Some(finished_search(Ok(Some(version("1.1.0")))));
+
+        // Act : 10 min restantes, la relance est différée.
+        updater.poll(now, Some(10));
+
+        // Assert
+        assert!(updater.running.is_none());
+        assert!(updater.installed);
+    }
+
+    #[test]
+    fn poll_forgets_a_search_whose_thread_has_stopped() {
+        // Arrange
+        let now = Instant::now();
+        let mut updater = safe_updater(now);
+        let (_, receiver) = mpsc::channel();
+        updater.running = Some(receiver);
+
+        // Act
+        updater.poll(now, None);
+
+        // Assert
+        assert!(updater.running.is_none());
+    }
+
+    #[test]
+    fn handle_remembers_the_error_to_show_it_only_once() {
+        // Arrange
+        let mut updater = safe_updater(Instant::now());
+
+        // Act
+        updater.handle(Err(String::from("réseau coupé")));
+
+        // Assert
+        assert_eq!(updater.last_error.as_deref(), Some("réseau coupé"));
+        assert!(!updater.installed);
+    }
+
+    #[test]
+    fn handle_forgets_the_error_once_a_search_succeeds() {
+        // Arrange
+        let mut updater = safe_updater(Instant::now());
+        updater.handle(Err(String::from("réseau coupé")));
+
+        // Act
+        updater.handle(Ok(None));
+
+        // Assert
+        assert_eq!(updater.last_error, None);
     }
 }
