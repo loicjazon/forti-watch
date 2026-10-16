@@ -5,9 +5,10 @@ mod tray;
 
 use crate::config;
 use block2::RcBlock;
-use objc2::MainThreadMarker;
-use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
-use objc2_foundation::{NSRunLoop, NSRunLoopCommonModes, NSTimer};
+use objc2::rc::Retained;
+use objc2::{AllocAnyThread, MainThreadMarker};
+use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSImage};
+use objc2_foundation::{NSData, NSRunLoop, NSRunLoopCommonModes, NSSize, NSTimer};
 use std::cell::RefCell;
 use std::ptr::NonNull;
 use std::rc::Rc;
@@ -47,6 +48,13 @@ fn schedule(seconds: f64, repeats: bool, action: impl Fn() + 'static) {
     let timer = unsafe { NSTimer::timerWithTimeInterval_repeats_block(seconds, repeats, &block) };
     // SAFETY : minuteur valide, ajouté à la boucle principale dans un mode prédéfini.
     unsafe { NSRunLoop::mainRunLoop().addTimer_forMode(&timer, NSRunLoopCommonModes) };
+}
+
+/// Image tirée d'un SVG embarqué dans le binaire (distribué seul, sans fichier annexe), à la taille `side` points.
+fn svg_image(svg: &str, side: f64) -> Option<Retained<NSImage>> {
+    let image = NSImage::initWithData(NSImage::alloc(), &NSData::with_bytes(svg.as_bytes()))?;
+    image.setSize(NSSize::new(side, side));
+    Some(image)
 }
 
 /// Heure locale `HH:MM` d'un instant donné.

@@ -6,6 +6,9 @@ use objc2_foundation::NSString;
 use std::cell::RefCell;
 
 const HEADING: &str = "Coupure du VPN imminente";
+/// Logo en couleur : sans lui, un binaire seul (sans `.app`) aurait l'icône d'un dossier.
+const ICON_SVG: &str = include_str!("../../docs/images/logo.svg");
+const ICON_SIDE: f64 = 64.0;
 
 thread_local! {
     /// Alerte affichée en ce moment. `runModal` lance une boucle d'événements : ouvrir une seconde alerte
@@ -45,6 +48,10 @@ fn present(heading: &str, detail: &str) {
 
     let alert = NSAlert::new(main_thread);
     alert.setAlertStyle(NSAlertStyle::Warning);
+    if let Some(icon) = super::svg_image(ICON_SVG, ICON_SIDE) {
+        // SAFETY : image valide, conservée par l'alerte.
+        unsafe { alert.setIcon(Some(&icon)) };
+    }
     set_texts(&alert, heading, detail);
     alert.addButtonWithTitle(&NSString::from_str("Compris"));
     OPEN_ALERT.set(Some(alert.clone()));

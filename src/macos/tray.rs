@@ -2,13 +2,14 @@ use crate::tray::{View, label, menu_lines};
 use objc2::rc::Retained;
 use objc2::{MainThreadMarker, MainThreadOnly, sel};
 use objc2_app_kit::{
-    NSCellImagePosition, NSImage, NSMenu, NSMenuItem, NSStatusBar, NSStatusItem,
-    NSVariableStatusItemLength,
+    NSCellImagePosition, NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
 };
 use objc2_foundation::NSString;
 
-/// Symbole système (SF Symbols) affiché devant le texte ; il suit le thème clair ou sombre de la barre.
-const SYMBOL_NAME: &str = "timer";
+/// Logo monochrome affiché devant le texte : image « template », que macOS colore selon le thème de la barre.
+const ICON_SVG: &str = include_str!("../../docs/images/logo-mono.svg");
+/// Hauteur du logo dans la barre des menus, en points.
+const ICON_SIDE: f64 = 16.0;
 
 /// Indicateur dans la barre des menus (`NSStatusItem`) : temps restant et menu d'information.
 pub struct Tray {
@@ -24,13 +25,9 @@ impl Tray {
         let main_thread = MainThreadMarker::new()?;
         let item = NSStatusBar::systemStatusBar().statusItemWithLength(NSVariableStatusItemLength);
         if let Some(button) = item.button(main_thread) {
-            let symbol = NSImage::imageWithSystemSymbolName_accessibilityDescription(
-                &NSString::from_str(SYMBOL_NAME),
-                Some(&NSString::from_str("forti-watch")),
-            );
-            if let Some(symbol) = symbol {
-                symbol.setTemplate(true);
-                button.setImage(Some(&symbol));
+            if let Some(icon) = super::svg_image(ICON_SVG, ICON_SIDE) {
+                icon.setTemplate(true);
+                button.setImage(Some(&icon));
                 button.setImagePosition(NSCellImagePosition::ImageLeft);
             }
             button.setTitle(&NSString::from_str("…"));
