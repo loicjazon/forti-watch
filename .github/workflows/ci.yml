@@ -52,6 +52,18 @@ jobs:
           name: couverture-html
           path: target/llvm-cov/html
 
+  test-macos:
+    # Lint et tests de la partie macOS (AppKit, scutil), compilée seulement sur macOS.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal -c clippy
+          rustup default stable
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
   badge:
     # Badge du README : JSON lu par shields.io, sur la branche orpheline `badges` (un seul commit, écrasé à chaque fois).
     needs: test
