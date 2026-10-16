@@ -4,6 +4,10 @@
 
 <h1 align="center">forti-watch</h1>
 
+<p align="center">
+  <a href="https://github.com/loicjazon/forti-watch/actions/workflows/ci.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Floicjazon%2Fforti-watch%2Fbadges%2Fcoverage.json" alt="Couverture des tests"></a>
+</p>
+
 Petit outil de bureau Linux qui affiche le **temps de connexion restant du VPN FortiClient** et vous
 **prévient avant la coupure** de la session.
 

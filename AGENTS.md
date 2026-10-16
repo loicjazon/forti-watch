@@ -40,7 +40,7 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils, dépôt et cadence de mise à jour |
 | `docs/index.html` | Page vitrine GitHub Pages (`main` / `/docs`) : HTML + CSS inline, sans build, images dans `docs/images/`. La commande d'installation y est dupliquée du README : les garder identiques |
 | `install.sh` | Installateur POSIX `sh` : télécharge `releases/latest/download/…` (surchargeable par `FORTI_WATCH_DOWNLOAD_URL`, utile pour tester), vérifie le SHA-256, installe, active l'autostart |
-| `.github/workflows/ci.yml` | Tests (fmt, clippy `-D warnings`, test) dans un conteneur `ubuntu:22.04` sur push / PR vers `main`. Les tests passent par `cargo llvm-cov` : tableau de couverture dans le résumé du run, rapport HTML en artefact `couverture-html` |
+| `.github/workflows/ci.yml` | Tests (fmt, clippy `-D warnings`, test) dans un conteneur `ubuntu:22.04` sur push / PR vers `main`. Les tests passent par `cargo llvm-cov` : tableau de couverture dans le résumé du run, rapport HTML en artefact `couverture-html`. Sur push vers `main`, le job `badge` écrit `coverage.json` (format shields.io) sur la branche orpheline `badges`, lue par le badge du README |
 | `.github/workflows/release.yml` | Sur tag `v*` : vérifie tag = version de `Cargo.toml`, compile dans `ubuntu:22.04`, publie binaire + `.sha256` via `gh release create` |
 
 Règles de fonctionnement à ne pas casser :
