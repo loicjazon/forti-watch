@@ -2,11 +2,20 @@ set -eu
 
 REPO="loicjazon/forti-watch"
 DOWNLOAD_URL="${FORTI_WATCH_DOWNLOAD_URL:-https://github.com/$REPO/releases/latest/download}"
-ASSET="forti-watch-linux-x86_64"
+OS="$(uname -s)"
 
 BIN_DIR="$HOME/.local/bin"
-AUTOSTART_DIR="$HOME/.config/autostart"
-DESKTOP_FILE="$AUTOSTART_DIR/forti-watch.desktop"
+if [ "$OS" = "Darwin" ]; then
+  # Binaire universel : Intel et Apple Silicon.
+  ASSET="forti-watch-macos-universal"
+  AGENT_LABEL="io.github.loicjazon.forti-watch"
+  AGENT_FILE="$HOME/Library/LaunchAgents/$AGENT_LABEL.plist"
+  LOG_FILE="$HOME/Library/Logs/forti-watch.log"
+else
+  ASSET="forti-watch-linux-x86_64"
+  AUTOSTART_DIR="$HOME/.config/autostart"
+  DESKTOP_FILE="$AUTOSTART_DIR/forti-watch.desktop"
+fi
 
 # --- Affichage -------------------------------------------------------------
 # Couleurs et réécriture de ligne seulement dans un vrai terminal (pas dans un fichier ni avec NO_COLOR).
@@ -70,6 +79,20 @@ fail() {
   exit 1
 }
 
+# Vérifie un fichier `.sha256` (format `<empreinte>  <nom>`) : `sha256sum` n'existe sur macOS qu'à partir de la 14.
+check_sha256() {
+  if [ "$OS" = "Darwin" ]; then
+    shasum -a 256 -c "$1"
+  else
+    sha256sum -c "$1"
+  fi
+}
+
+# Arrête le LaunchAgent macOS s'il est chargé (sans erreur sinon).
+stop_agent() {
+  launchctl bootout "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 || true
+}
+
 has_library() {
   { ldconfig -p 2>/dev/null || /sbin/ldconfig -p 2>/dev/null; } | grep -q -E "$1"
 }
@@ -77,9 +100,15 @@ has_library() {
 # --- Désinstallation -------------------------------------------------------
 if [ "${1:-}" = "--uninstall" ]; then
   banner
-  pkill -x forti-watch || true
-  rm -f "$BIN_DIR/forti-watch" "$DESKTOP_FILE"
-  rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/forti-watch"
+  if [ "$OS" = "Darwin" ]; then
+    stop_agent
+    pkill -x forti-watch || true
+    rm -f "$BIN_DIR/forti-watch" "$AGENT_FILE" "$LOG_FILE"
+  else
+    pkill -x forti-watch || true
+    rm -f "$BIN_DIR/forti-watch" "$DESKTOP_FILE"
+    rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/forti-watch"
+  fi
   ok "forti-watch désinstallé."
   printf '\n'
   exit 0
@@ -89,28 +118,50 @@ fi
 banner
 
 begin "Vérification du système"
-[ "$(uname -s)" = "Linux" ] || fail "forti-watch ne fonctionne que sous Linux."
-[ "$(uname -m)" = "x86_64" ] || fail "architecture $(uname -m) non prise en charge (x86_64 uniquement)."
 command -v curl >/dev/null 2>&1 || fail "curl est requis."
-command -v sha256sum >/dev/null 2>&1 || fail "sha256sum est requis."
-ok "Système compatible (Linux x86_64)"
+case "$OS" in
+  Darwin)
+    case "$(uname -m)" in
+      x86_64 | arm64) ;;
+      *) fail "architecture $(uname -m) non prise en charge (Intel ou Apple Silicon uniquement)." ;;
+    esac
+    command -v shasum >/dev/null 2>&1 || fail "shasum est requis."
+    ok "Système compatible (macOS $(uname -m))"
+    ;;
+  Linux)
+    [ "$(uname -m)" = "x86_64" ] || fail "architecture $(uname -m) non prise en charge (x86_64 uniquement)."
+    command -v sha256sum >/dev/null 2>&1 || fail "sha256sum est requis."
+    ok "Système compatible (Linux x86_64)"
+    ;;
+  *) fail "forti-watch ne fonctionne que sous Linux et macOS." ;;
+esac
 
-begin "Recherche de GTK3"
-has_library 'libgtk-3.so.0' || fail "GTK3 est requis. Installez-le avec : sudo apt install libgtk-3-0"
-ok "GTK3 présent"
-
-if has_library 'libayatana-appindicator3.so.1|libappindicator3.so.1'; then
-  ok "Bibliothèque de l'indicateur présente"
+if [ "$OS" = "Darwin" ]; then
+  # Le VPN de FortiClient est une Network Extension : forti-watch le lit avec `scutil --nc`.
+  if scutil --nc list 2>/dev/null | grep -q 'com.fortinet.forticlient.macos.vpn'; then
+    ok "FortiClient trouvé"
+  else
+    warn "Aucun VPN FortiClient dans les services réseau de macOS (scutil --nc list)" \
+      "forti-watch lit la durée de connexion du VPN avec cette commande ; sans lui, il ne pourra pas alerter."
+  fi
 else
-  warn "Indicateur de la barre supérieure indisponible" \
-    "Installez : sudo apt install libayatana-appindicator3-1"
-fi
+  begin "Recherche de GTK3"
+  has_library 'libgtk-3.so.0' || fail "GTK3 est requis. Installez-le avec : sudo apt install libgtk-3-0"
+  ok "GTK3 présent"
 
-if [ -x /opt/forticlient/forticlient-cli ]; then
-  ok "FortiClient trouvé"
-else
-  warn "FortiClient (/opt/forticlient/forticlient-cli) est introuvable" \
-    "forti-watch lit la durée de connexion du VPN avec cette commande ; sans elle, il ne pourra pas alerter."
+  if has_library 'libayatana-appindicator3.so.1|libappindicator3.so.1'; then
+    ok "Bibliothèque de l'indicateur présente"
+  else
+    warn "Indicateur de la barre supérieure indisponible" \
+      "Installez : sudo apt install libayatana-appindicator3-1"
+  fi
+
+  if [ -x /opt/forticlient/forticlient-cli ]; then
+    ok "FortiClient trouvé"
+  else
+    warn "FortiClient (/opt/forticlient/forticlient-cli) est introuvable" \
+      "forti-watch lit la durée de connexion du VPN avec cette commande ; sans elle, il ne pourra pas alerter."
+  fi
 fi
 
 tmp_dir="$(mktemp -d)"
@@ -136,14 +187,57 @@ done
 ok "Téléchargement${VERSION:+ de la version $VERSION}"
 
 begin "Vérification de l'empreinte SHA-256"
-(cd "$tmp_dir" && sha256sum -c "$ASSET.sha256" >/dev/null 2>&1) ||
+(cd "$tmp_dir" && check_sha256 "$ASSET.sha256" >/dev/null 2>&1) ||
   fail "l'empreinte SHA-256 du binaire ne correspond pas, installation annulée."
 ok "Empreinte SHA-256 vérifiée"
 
-mkdir -p "$BIN_DIR" "$AUTOSTART_DIR"
+mkdir -p "$BIN_DIR"
+if [ "$OS" = "Darwin" ]; then
+  stop_agent
+fi
 pkill -x forti-watch || true
 install -m 755 "$tmp_dir/$ASSET" "$BIN_DIR/forti-watch"
 ok "Installé dans $BIN_DIR/forti-watch${VERSION:+ ($VERSION)}"
+
+if [ "$OS" = "Darwin" ]; then
+  mkdir -p "$(dirname "$AGENT_FILE")" "$(dirname "$LOG_FILE")"
+  # LaunchAgent : lancé à chaque ouverture de session (RunAtLoad), pas relancé après « Quitter » (sans KeepAlive).
+  cat > "$AGENT_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$AGENT_LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$BIN_DIR/forti-watch</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>$LOG_FILE</string>
+  <key>StandardErrorPath</key>
+  <string>$LOG_FILE</string>
+</dict>
+</plist>
+EOF
+  ok "Lancement automatique activé"
+
+  printf '\n'
+  if launchctl bootstrap "gui/$(id -u)" "$AGENT_FILE" >/dev/null 2>&1; then
+    printf '  %sforti-watch%s est installé et démarré.%s\n' "$BOLD" "${VERSION:+ $VERSION}" "$RESET"
+    printf '  %sIl se lancera à chaque ouverture de session.%s\n\n' "$DIM" "$RESET"
+  else
+    printf '  %sforti-watch%s est installé.%s\n' "$BOLD" "${VERSION:+ $VERSION}" "$RESET"
+    printf '  %sIl se lancera à la prochaine ouverture de session.%s\n\n' "$DIM" "$RESET"
+  fi
+  exit 0
+fi
+
+mkdir -p "$AUTOSTART_DIR"
 
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
