@@ -19,6 +19,10 @@ cargo clippy --all-targets                  # doit rester sans avertissement (la
 cargo fmt --check                           # formatage
 cargo build --release                       # binaire : target/release/forti-watch
 FORTI_WATCH_TEST_EVERY_MINUTE=1 cargo run   # mode test : une alerte par minute
+# Téléchargements par version (≠ installations : tests, réinstallations et vraies auto-updates comptent ;
+# les vérifications sans nouvelle version non, elles ne lisent que la redirection de releases/latest)
+gh api repos/loicjazon/forti-watch/releases \
+  --jq '.[] | "\(.tag_name)\t\(.assets[] | select(.name=="forti-watch-linux-x86_64") | .download_count)"'
 ```
 
 Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
