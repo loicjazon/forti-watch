@@ -1,5 +1,5 @@
 use crate::config::{
-    ASSET_NAME, FIRST_UPDATE_CHECK_DELAY, UPDATE_BASE_URL, UPDATE_CHECK_INTERVAL,
+    ASSET_NAME, CHECKSUM_COMMAND, FIRST_UPDATE_CHECK_DELAY, UPDATE_BASE_URL, UPDATE_CHECK_INTERVAL,
     WARNING_THRESHOLDS_MINUTES,
 };
 use std::env;
@@ -232,13 +232,15 @@ fn run_curl(args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// `sha256sum -c` dans `dir`, où le fichier `.sha256` désigne le binaire par son nom.
+/// `CHECKSUM_COMMAND -c` dans `dir`, où le fichier `.sha256` désigne le binaire par son nom.
 fn verify_checksum(dir: &Path) -> Result<(), String> {
-    let status = Command::new("sha256sum")
+    let [program, options @ ..] = CHECKSUM_COMMAND;
+    let status = Command::new(program)
+        .args(options)
         .args(["-c", &format!("{ASSET_NAME}.sha256")])
         .current_dir(dir)
         .output()
-        .map_err(|error| format!("sha256sum introuvable : {error}"))?
+        .map_err(|error| format!("{program} introuvable : {error}"))?
         .status;
     if status.success() {
         Ok(())
@@ -300,11 +302,13 @@ mod tests {
                 NEW_BINARY,
             );
             // Empreinte au format de la release : `<sha256>  <nom du fichier>`.
-            let checksum = Command::new("sha256sum")
+            let [program, options @ ..] = CHECKSUM_COMMAND;
+            let checksum = Command::new(program)
+                .args(options)
                 .arg(ASSET_NAME)
                 .current_dir(asset.parent().expect("dossier de la release"))
                 .output()
-                .expect("sha256sum");
+                .expect("calcul de l'empreinte");
             dir.write(
                 &format!("releases/download/v9.9.9/{ASSET_NAME}.sha256"),
                 &String::from_utf8_lossy(&checksum.stdout),

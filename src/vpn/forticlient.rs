@@ -1,15 +1,11 @@
+//! FortiClient sous Linux : `forticlient-cli vpn status`.
+
+// Compilé (et testé) sur tous les systèmes ; seul Linux l'utilise.
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
+use super::{Status, field};
 use std::process::Command;
 use std::time::Duration;
-
-/// État du VPN tel que rapporté par FortiClient.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Status {
-    /// Connecté depuis `elapsed` (la « Duration » affichée par FortiClient).
-    Connected {
-        elapsed: Duration,
-    },
-    Disconnected,
-}
 
 /// Interroge `forticlient-cli vpn status`.
 ///
@@ -53,16 +49,6 @@ pub fn parse_status(output: &str) -> Option<Status> {
 
     let elapsed = parse_duration(field(output, "Duration")?)?;
     Some(Status::Connected { elapsed })
-}
-
-/// Valeur de la ligne `<name>: <valeur>` (les lignes de détail sont indentées).
-fn field<'a>(output: &'a str, name: &str) -> Option<&'a str> {
-    output.lines().find_map(|line| {
-        line.trim()
-            .strip_prefix(name)?
-            .strip_prefix(':')
-            .map(str::trim)
-    })
 }
 
 /// `HH:MM:SS` (les heures peuvent dépasser 24) -> durée.

@@ -45,18 +45,55 @@ jobs:
           cd dist && sha256sum forti-watch-linux-x86_64 > forti-watch-linux-x86_64.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-linux
+          path: dist/
+
+  build-macos:
+    runs-on: macos-latest
+    env:
+      # Version minimale de macOS exigée par le binaire.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust (Intel et Apple Silicon)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+      - name: Le tag correspond à la version de Cargo.toml
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Le tag $GITHUB_REF_NAME ne correspond pas à la version $version de Cargo.toml." >&2
+            exit 1
+          fi
+      - run: cargo build --release --locked --target x86_64-apple-darwin
+      - run: cargo build --release --locked --target aarch64-apple-darwin
+      - name: Binaire universel et empreinte SHA-256
+        # Signature ad hoc : macOS refuse d'exécuter du code arm64 non signé.
+        run: |
+          mkdir dist
+          lipo -create -output dist/forti-watch-macos-universal \
+            target/x86_64-apple-darwin/release/forti-watch \
+            target/aarch64-apple-darwin/release/forti-watch
+          codesign --force --sign - dist/forti-watch-macos-universal
+          lipo -info dist/forti-watch-macos-universal
+          cd dist && shasum -a 256 forti-watch-macos-universal > forti-watch-macos-universal.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos
           path: dist/
 
   release:
-    needs: build
+    needs: [build, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist
+          pattern: dist-*
+          merge-multiple: true
           path: dist
       - name: Publier la release
         env:
