@@ -36,7 +36,8 @@ Compiler demande les en-têtes GTK3 : `sudo apt install libgtk-3-dev`.
 | `src/tray.rs` | `Tray` : indicateur de la barre GNOME (AppIndicator via `libappindicator`). `label`, `menu_lines` sont **pures et testées** ; seule la partie GTK ne l'est pas |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn.rs` | `read_status` lance `forticlient-cli vpn status` ; `parse_status` (pure, testée) en extrait `Status::Connected { elapsed }` ou `Disconnected` |
-| `src/update.rs` | Mise à jour automatique. `Version`, `parse_latest_tag`, `is_newer`, `can_restart` sont **purs et testés** ; `check_and_install` (curl + `sha256sum`, sans dépendance ajoutée) et `Updater` (thread + `mpsc`, relance par `exec`) sont en périphérie |
+| `src/update.rs` | Mise à jour automatique. `Version`, `parse_latest_tag`, `is_newer`, `can_restart` sont **purs et testés** ; `check_and_install` = `find_latest` (redirection, non testé) + `install` (curl + `sha256sum`, sans dépendance ajoutée, testé avec une fausse release en `file://`) ; `Updater` (thread + `mpsc`, relance par `exec`) est en périphérie |
+| `src/test_support.rs` | Outils des tests uniquement (`#[cfg(test)]`) : `TestDir`, dossier temporaire supprimé à la fin du test |
 | `src/config.rs` | Chemin de la CLI (surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils, dépôt et cadence de mise à jour |
 | `docs/index.html` | Page vitrine GitHub Pages (`main` / `/docs`) : HTML + CSS inline, sans build, images dans `docs/images/`. La commande d'installation y est dupliquée du README : les garder identiques |
 | `install.sh` | Installateur POSIX `sh` : télécharge `releases/latest/download/…` (surchargeable par `FORTI_WATCH_DOWNLOAD_URL`, utile pour tester), vérifie le SHA-256, installe, active l'autostart |

@@ -1,6 +1,8 @@
 mod alert;
 mod config;
 mod session;
+#[cfg(test)]
+mod test_support;
 mod tray;
 mod update;
 mod vpn;

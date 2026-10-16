@@ -63,6 +63,16 @@ pub fn check_and_install(
     exe_path: &Path,
     current: &Version,
 ) -> Result<Option<Version>, String> {
+    let latest = find_latest(base_url)?;
+    if !is_newer(&latest, current) {
+        return Ok(None);
+    }
+    install(base_url, &latest, exe_path)?;
+    Ok(Some(latest))
+}
+
+/// Version de la dernière release, d'après la redirection de `…/releases/latest`.
+fn find_latest(base_url: &str) -> Result<Version, String> {
     let latest_url = run_curl(&[
         "-o",
         "/dev/null",
@@ -70,12 +80,13 @@ pub fn check_and_install(
         "%{url_effective}",
         &format!("{base_url}/releases/latest"),
     ])?;
-    let latest = parse_latest_tag(&latest_url)
-        .ok_or_else(|| format!("version de la dernière release illisible ({latest_url})"))?;
-    if !is_newer(&latest, current) {
-        return Ok(None);
-    }
+    parse_latest_tag(&latest_url)
+        .ok_or_else(|| format!("version de la dernière release illisible ({latest_url})"))
+}
 
+/// Télécharge le binaire de `latest` et son `.sha256`, vérifie l'empreinte puis remplace `exe_path`.
+/// En cas d'échec, `exe_path` n'est pas touché.
+fn install(base_url: &str, latest: &Version, exe_path: &Path) -> Result<(), String> {
     // Même dossier que l'exécutable : le renommage final reste sur un seul système de fichiers (atomique).
     let work_dir = TempDir::create(
         exe_path
@@ -97,9 +108,7 @@ pub fn check_and_install(
     fs::set_permissions(&downloaded, fs::Permissions::from_mode(0o755))
         .map_err(|error| format!("permissions du binaire téléchargé : {error}"))?;
     fs::rename(&downloaded, exe_path)
-        .map_err(|error| format!("remplacement de {} : {error}", exe_path.display()))?;
-
-    Ok(Some(latest))
+        .map_err(|error| format!("remplacement de {} : {error}", exe_path.display()))
 }
 
 type CheckResult = Result<Option<Version>, String>;
@@ -266,9 +275,158 @@ impl Drop for TempDir {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::TestDir;
+
+    const OLD_BINARY: &str = "ancien binaire";
+    const NEW_BINARY: &str = "nouveau binaire";
 
     fn version(text: &str) -> Version {
         Version::parse(text).expect("version valide")
+    }
+
+    /// Fausse release `v9.9.9` servie en `file://` (que `curl` sait lire) et binaire installé à remplacer.
+    struct FakeRelease {
+        dir: TestDir,
+        exe_path: PathBuf,
+    }
+
+    impl FakeRelease {
+        fn new(name: &str) -> Self {
+            let dir = TestDir::new(name);
+            let exe_path = dir.write("bin/forti-watch", OLD_BINARY);
+            let asset = dir.write(
+                &format!("releases/download/v9.9.9/{ASSET_NAME}"),
+                NEW_BINARY,
+            );
+            // Empreinte au format de la release : `<sha256>  <nom du fichier>`.
+            let checksum = Command::new("sha256sum")
+                .arg(ASSET_NAME)
+                .current_dir(asset.parent().expect("dossier de la release"))
+                .output()
+                .expect("sha256sum");
+            dir.write(
+                &format!("releases/download/v9.9.9/{ASSET_NAME}.sha256"),
+                &String::from_utf8_lossy(&checksum.stdout),
+            );
+            Self { dir, exe_path }
+        }
+
+        fn install(&self) -> Result<(), String> {
+            let base_url = format!("file://{}", self.dir.path().display());
+            install(&base_url, &version("9.9.9"), &self.exe_path)
+        }
+
+        fn installed_binary(&self) -> String {
+            fs::read_to_string(&self.exe_path).expect("binaire installé")
+        }
+
+        fn files_next_to_the_binary(&self) -> Vec<String> {
+            fs::read_dir(self.exe_path.parent().expect("dossier du binaire"))
+                .expect("lecture du dossier du binaire")
+                .map(|entry| {
+                    entry
+                        .expect("entrée")
+                        .file_name()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect()
+        }
+    }
+
+    #[test]
+    fn install_replaces_the_binary_when_the_checksum_matches() {
+        // Arrange
+        let release = FakeRelease::new("install-ok");
+
+        // Act
+        let result = release.install();
+
+        // Assert
+        assert_eq!(result, Ok(()));
+        assert_eq!(release.installed_binary(), NEW_BINARY);
+    }
+
+    #[test]
+    fn install_makes_the_new_binary_executable() {
+        // Arrange
+        let release = FakeRelease::new("install-mode");
+
+        // Act
+        release.install().expect("installation");
+
+        // Assert
+        let mode = fs::metadata(&release.exe_path)
+            .expect("binaire installé")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o755);
+    }
+
+    #[test]
+    fn install_keeps_the_binary_when_the_checksum_does_not_match() {
+        // Arrange
+        let release = FakeRelease::new("install-bad-checksum");
+        release.dir.write(
+            &format!("releases/download/v9.9.9/{ASSET_NAME}"),
+            "binaire corrompu",
+        );
+
+        // Act
+        let result = release.install();
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(release.installed_binary(), OLD_BINARY);
+    }
+
+    #[test]
+    fn install_keeps_the_binary_when_the_download_fails() {
+        // Arrange
+        let release = FakeRelease::new("install-missing-asset");
+        fs::remove_file(
+            release
+                .dir
+                .path()
+                .join(format!("releases/download/v9.9.9/{ASSET_NAME}")),
+        )
+        .expect("suppression du binaire publié");
+
+        // Act
+        let result = release.install();
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(release.installed_binary(), OLD_BINARY);
+    }
+
+    #[test]
+    fn install_removes_its_work_directory_after_a_success() {
+        // Arrange
+        let release = FakeRelease::new("install-cleanup-ok");
+
+        // Act
+        release.install().expect("installation");
+
+        // Assert
+        assert_eq!(release.files_next_to_the_binary(), ["forti-watch"]);
+    }
+
+    #[test]
+    fn install_removes_its_work_directory_after_a_failure() {
+        // Arrange
+        let release = FakeRelease::new("install-cleanup-error");
+        release.dir.write(
+            &format!("releases/download/v9.9.9/{ASSET_NAME}.sha256"),
+            "0000  forti-watch-linux-x86_64\n",
+        );
+
+        // Act
+        let result = release.install();
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(release.files_next_to_the_binary(), ["forti-watch"]);
     }
 
     #[test]
