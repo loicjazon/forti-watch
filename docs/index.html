@@ -88,11 +88,12 @@
   .shot img { max-width: 100%; height: auto; display: block; }
   figcaption { margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
   figcaption strong { color: var(--text); display: block; font-size: 1rem; }
-  .alert-card { margin-top: 16px; display: grid; gap: 20px; grid-template-columns: auto 1fr; align-items: center; }
-  .alert-card .shot { padding: 12px; }
-  .alert-card .shot img { border-radius: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); }
-  .alert-card figcaption { margin: 0; }
-  @media (max-width: 640px) { .alert-card { grid-template-columns: 1fr; } }
+  .alert-card { margin-top: 16px; display: grid; gap: 16px; }
+  .alert-card .shot { padding: 20px 12px 12px; gap: 24px 32px; flex-wrap: wrap; align-items: center; }
+  .alert-card .shot figure { text-align: center; min-width: 0; max-width: 100%; }
+  .alert-card .shot img { border-radius: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); margin: 0 auto; }
+  .alert-card .shot span { display: block; margin-top: 10px; font-size: 0.85rem; color: #9aa4af; }
+  .alert-card > figcaption { margin: 0; }
   ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 14px; }
   ol.steps li {
     counter-increment: step; position: relative; padding: 14px 16px 14px 56px;
@@ -152,7 +153,10 @@
       </figure>
     </div>
     <figure class="card alert-card">
-      <div class="shot"><img src="images/fenetre-alerte.png" width="295" height="287" alt="Fenêtre « Coupure du VPN imminente » : 1h00 restantes"></div>
+      <div class="shot">
+        <figure><img src="images/fenetre-alerte.png" width="295" height="287" alt="Fenêtre Linux « Coupure du VPN imminente » : 1h00 restantes"><span>Linux</span></figure>
+        <figure><img src="images/fenetre-alerte-macos.png" width="260" height="220" alt="Alerte macOS « Coupure du VPN imminente : 1h00 », 1h00 restantes, coupure vers 01:01"><span>macOS</span></figure>
+      </div>
       <figcaption><strong>Une alerte à 1 h, puis à 15 min</strong>Une fenêtre s'ouvre au premier plan avec l'heure prévue de la coupure, pour avoir le temps d'enregistrer son travail.</figcaption>
     </figure>
   </section>
