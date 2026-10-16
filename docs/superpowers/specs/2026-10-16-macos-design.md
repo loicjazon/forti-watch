@@ -63,7 +63,8 @@ visible par l'outil système `scutil` (sans droits admin).
      passage à « connecté ») ;
    - `Reasserting` (reconnexion réseau en cours) → `None` côté analyse, donc `Err` : état inconnu, la session
      est gardée ;
-   - toute autre première ligne (`Disconnected`, `Connecting`, `Disconnecting`, `Invalid`) → déconnecté.
+   - `Disconnected`, `Connecting`, `Disconnecting`, `Invalid` → déconnecté ;
+   - toute autre première ligne (message d'erreur, état inconnu) → `Err`, comme `Reasserting`.
 3. Les composantes de date (pures) sont converties en `SystemTime` par `libc::mktime` (fuseau et heure d'été
    du système), puis `elapsed = now − début` (0 si l'horloge recule) → `Status::Connected { elapsed }`.
 

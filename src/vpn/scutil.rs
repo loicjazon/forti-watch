@@ -6,7 +6,10 @@
 // L'analyse est compilée (et testée) sur tous les systèmes ; seul macOS l'utilise.
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
+#[cfg(target_os = "macos")]
+use super::Status;
 use super::field;
+use std::time::{Duration, SystemTime};
 
 /// Marque de la ligne du VPN FortiClient dans `scutil --nc list`.
 pub const FORTICLIENT_SERVICE: &str = "[VPN:com.fortinet.forticlient.macos.vpn]";
@@ -43,7 +46,7 @@ pub fn parse_service_id(list_output: &str) -> Option<&str> {
 
 /// Analyse la sortie de `scutil --nc status <id>`.
 ///
-/// `None` si l'état est inconnu : sortie inattendue, connecté sans heure lisible, ou reconnexion en cours
+/// `None` si l'état est inconnu : état non reconnu, connecté sans heure lisible, ou reconnexion en cours
 /// (`Reasserting`), pendant laquelle la session en cours doit être gardée.
 pub fn parse_scutil(status_output: &str) -> Option<ScutilStatus> {
     let state = status_output
@@ -55,9 +58,77 @@ pub fn parse_scutil(status_output: &str) -> Option<ScutilStatus> {
             let since = parse_date_time(field(status_output, "LastStatusChangeTime")?)?;
             Some(ScutilStatus::Connected { since })
         }
-        "Reasserting" => None,
-        _ => Some(ScutilStatus::Disconnected),
+        "Disconnected" | "Connecting" | "Disconnecting" | "Invalid" => {
+            Some(ScutilStatus::Disconnected)
+        }
+        // `Reasserting` (reconnexion réseau en cours) ou réponse inconnue : la session en cours est gardée.
+        _ => None,
     }
+}
+
+/// Durée écoulée depuis `start` ; nulle si `start` est dans le futur (horloge recalée).
+pub fn elapsed_since(start: SystemTime, now: SystemTime) -> Duration {
+    now.duration_since(start).unwrap_or(Duration::ZERO)
+}
+
+/// Interroge `scutil --nc` : `Err` signifie que l'état est inconnu (l'appelant ne doit pas en déduire que le VPN est
+/// coupé). Les messages d'erreur ne contiennent jamais la sortie de `scutil`.
+#[cfg(target_os = "macos")]
+pub fn read_status(scutil_path: &str, now: SystemTime) -> Result<Status, String> {
+    let list_output = run(scutil_path, &["--nc", "list"])?;
+    let service_id = parse_service_id(&list_output).ok_or(
+        "VPN FortiClient introuvable dans les services réseau de macOS (scutil --nc list)",
+    )?;
+    let status_output = run(scutil_path, &["--nc", "status", service_id])?;
+    match parse_scutil(&status_output) {
+        Some(ScutilStatus::Connected { since }) => {
+            let start =
+                to_system_time(&since).ok_or("heure de connexion du VPN FortiClient illisible")?;
+            Ok(Status::Connected {
+                elapsed: elapsed_since(start, now),
+            })
+        }
+        Some(ScutilStatus::Disconnected) => Ok(Status::Disconnected),
+        None => Err(String::from(
+            "état du VPN FortiClient inconnu (reconnexion en cours ou réponse inattendue de scutil)",
+        )),
+    }
+}
+
+/// Sortie standard de `scutil_path args…`, sans jamais recopier ce qu'il écrit.
+#[cfg(target_os = "macos")]
+fn run(scutil_path: &str, args: &[&str]) -> Result<String, String> {
+    let output = std::process::Command::new(scutil_path)
+        .args(args)
+        .output()
+        .map_err(|error| format!("impossible de lancer {scutil_path} : {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "« {scutil_path} {} » a échoué ({})",
+            args.first().copied().unwrap_or_default(),
+            output.status
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Heure locale -> instant, avec le fuseau et l'heure d'été du système (`mktime`).
+#[cfg(target_os = "macos")]
+fn to_system_time(local: &LocalDateTime) -> Option<SystemTime> {
+    // SAFETY : `tm` est une structure C de nombres, valide une fois remplie de zéros.
+    let mut broken_down: libc::tm = unsafe { std::mem::zeroed() };
+    broken_down.tm_year = local.year - 1900;
+    broken_down.tm_mon = i32::try_from(local.month).ok()? - 1;
+    broken_down.tm_mday = i32::try_from(local.day).ok()?;
+    broken_down.tm_hour = i32::try_from(local.hour).ok()?;
+    broken_down.tm_min = i32::try_from(local.minute).ok()?;
+    broken_down.tm_sec = i32::try_from(local.second).ok()?;
+    // Heure d'été : à déterminer par `mktime`.
+    broken_down.tm_isdst = -1;
+    // SAFETY : `mktime` lit et normalise la structure qu'on lui passe, sans la conserver.
+    let seconds = unsafe { libc::mktime(&mut broken_down) };
+    let seconds = u64::try_from(seconds).ok()?;
+    Some(SystemTime::UNIX_EPOCH + Duration::from_secs(seconds))
 }
 
 /// `MM/DD/YYYY HH:MM:SS` -> composantes, bornées (mois 1-12, jour 1-31, heure < 24, minutes et secondes < 60).
@@ -176,6 +247,11 @@ Extended Status <dictionary> {
     }
 
     #[test]
+    fn an_unrecognized_state_is_unknown() {
+        assert_eq!(parse_scutil("No service\n"), None);
+    }
+
+    #[test]
     fn connected_without_change_time_is_unknown() {
         assert_eq!(
             parse_scutil("Connected\nExtended Status <dictionary> {\n}\n"),
@@ -200,5 +276,140 @@ Extended Status <dictionary> {
     #[test]
     fn empty_output_is_unknown() {
         assert_eq!(parse_scutil(""), None);
+    }
+
+    #[test]
+    fn elapsed_is_the_time_since_the_start() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1000);
+
+        let elapsed = elapsed_since(start, start + Duration::from_secs(90));
+
+        assert_eq!(elapsed, Duration::from_secs(90));
+    }
+
+    #[test]
+    fn elapsed_is_zero_when_the_start_is_in_the_future() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1000);
+
+        let elapsed = elapsed_since(now + Duration::from_secs(60), now);
+
+        assert_eq!(elapsed, Duration::ZERO);
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod macos_tests {
+    use super::*;
+    use crate::test_support::TestDir;
+    use std::process::Command;
+
+    const SERVICE_ID: &str = "00000000-0000-4000-8000-000000000001";
+    /// Instant de connexion des faux `scutil` : 2026-10-16 vers 16:53 UTC.
+    const CONNECTED_AT: u64 = 1_792_169_584;
+
+    fn at(seconds: u64) -> SystemTime {
+        SystemTime::UNIX_EPOCH + Duration::from_secs(seconds)
+    }
+
+    /// Heure locale de `seconds` au format de `scutil`, calculée par `date` (référence indépendante de `mktime`).
+    fn local_text(seconds: u64) -> String {
+        let output = Command::new("date")
+            .args(["-r", &seconds.to_string(), "+%m/%d/%Y %H:%M:%S"])
+            .output()
+            .expect("date");
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    }
+
+    /// Faux `scutil` : `--nc list` liste le service FortiClient, `--nc status <id>` affiche `status_output`.
+    fn fake_scutil(dir: &TestDir, status_output: &str) -> String {
+        let list_output = format!(
+            "* (Connected)      {SERVICE_ID} VPN (com.fortinet.forticlient.macos.vpn) \"Mon VPN\"  {FORTICLIENT_SERVICE}"
+        );
+        let body = format!(
+            "case \"$2 $3\" in\n  'list ') printf '%s\\n' '{list_output}' ;;\n  'status {SERVICE_ID}') printf '%s\\n' '{status_output}' ;;\n  *) exit 1 ;;\nesac"
+        );
+        dir.write_script("scutil", &body)
+            .to_str()
+            .expect("chemin lisible")
+            .to_owned()
+    }
+
+    #[test]
+    fn reads_the_time_elapsed_since_the_connection() {
+        // Arrange
+        let dir = TestDir::new("scutil-connected");
+        let output = format!(
+            "Connected\nExtended Status <dictionary> {{\n  LastStatusChangeTime : {}\n}}",
+            local_text(CONNECTED_AT)
+        );
+        let scutil_path = fake_scutil(&dir, &output);
+
+        // Act
+        let status = read_status(&scutil_path, at(CONNECTED_AT + 3600));
+
+        // Assert
+        assert_eq!(
+            status,
+            Ok(Status::Connected {
+                elapsed: Duration::from_secs(3600)
+            })
+        );
+    }
+
+    #[test]
+    fn reads_a_disconnected_vpn() {
+        // Arrange
+        let dir = TestDir::new("scutil-disconnected");
+        let scutil_path = fake_scutil(&dir, "Disconnected");
+
+        // Act
+        let status = read_status(&scutil_path, at(CONNECTED_AT));
+
+        // Assert
+        assert_eq!(status, Ok(Status::Disconnected));
+    }
+
+    #[test]
+    fn a_missing_forticlient_service_is_an_error_not_a_disconnection() {
+        // Arrange
+        let dir = TestDir::new("scutil-no-service");
+        let scutil_path = dir
+            .write_script("scutil", "echo 'Available network connection services'")
+            .display()
+            .to_string();
+
+        // Act
+        let status = read_status(&scutil_path, at(CONNECTED_AT));
+
+        // Assert
+        let error = status.expect_err("service absent");
+        assert!(error.contains("introuvable"), "{error}");
+    }
+
+    #[test]
+    fn a_missing_scutil_is_an_error() {
+        // Arrange
+        let dir = TestDir::new("scutil-missing");
+        let scutil_path = dir.path().join("absent").display().to_string();
+
+        // Act
+        let status = read_status(&scutil_path, at(CONNECTED_AT));
+
+        // Assert
+        assert!(status.is_err());
+    }
+
+    #[test]
+    fn the_error_message_never_repeats_the_output_of_scutil() {
+        // Arrange
+        let dir = TestDir::new("scutil-secret");
+        let scutil_path = fake_scutil(&dir, "Bizarre\n  authToken : SECRET-123");
+
+        // Act
+        let status = read_status(&scutil_path, at(CONNECTED_AT));
+
+        // Assert
+        let error = status.expect_err("sortie inattendue");
+        assert!(!error.contains("SECRET-123"), "{error}");
     }
 }

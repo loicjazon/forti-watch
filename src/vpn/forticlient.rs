@@ -1,5 +1,8 @@
 //! FortiClient sous Linux : `forticlient-cli vpn status`.
 
+// Compilé (et testé) sur tous les systèmes ; seul Linux l'utilise.
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 use super::{Status, field};
 use std::process::Command;
 use std::time::Duration;

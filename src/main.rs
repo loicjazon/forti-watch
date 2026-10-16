@@ -38,7 +38,7 @@ fn main() {
         let mut tray = Tray::new();
         move || {
             let now = SystemTime::now();
-            let view = match vpn::read_status(&cli_path) {
+            let view = match vpn::read_status(&cli_path, now) {
                 Ok(status) => {
                     last_error = None;
                     if let Some(alert) = tracker.update(&status, now) {
