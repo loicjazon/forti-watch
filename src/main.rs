@@ -1,10 +1,10 @@
+mod alert;
 mod config;
 mod session;
 mod tray;
 mod update;
 mod vpn;
 
-use gtk::prelude::*;
 use session::{Alert, Tracker, format_duration};
 use std::cell::RefCell;
 use std::env;
@@ -87,26 +87,12 @@ fn main() {
 }
 
 fn show_alert(alert: &Alert) {
-    let message = format!(
-        "Le VPN sera coupé dans {} (vers {}).",
+    let cut_at_text = clock(alert.cut_at);
+    println!(
+        "Le VPN sera coupé dans {} (vers {cut_at_text}).",
         format_duration(alert.remaining_minutes),
-        clock(alert.cut_at),
     );
-    println!("{message}");
-
-    let dialog = gtk::MessageDialog::new(
-        None::<&gtk::Window>,
-        gtk::DialogFlags::empty(),
-        gtk::MessageType::Warning,
-        gtk::ButtonsType::Ok,
-        &message,
-    );
-    dialog.set_title("VPN : coupure imminente");
-    dialog.set_position(gtk::WindowPosition::Center);
-    dialog.set_keep_above(true);
-    // `show()` ne bloque pas : la boucle de vérification continue pendant que la fenêtre est ouverte.
-    dialog.connect_response(|dialog, _| dialog.close());
-    dialog.show();
+    alert::show(alert, &cut_at_text);
 }
 
 /// Heure locale `HH:MM` d'un instant donné.
