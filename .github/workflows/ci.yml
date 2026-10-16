@@ -24,8 +24,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Rust
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal -c clippy -c rustfmt
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal -c clippy -c rustfmt -c llvm-tools-preview
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      # Lance les tests (échec = CI rouge) en mesurant la couverture.
+      - run: cargo llvm-cov --locked --no-report
+      - name: Couverture
+        run: |
+          {
+            echo '## Couverture des tests'
+            echo '```text'
+            cargo llvm-cov report
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cargo llvm-cov report --html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couverture-html
+          path: target/llvm-cov/html
