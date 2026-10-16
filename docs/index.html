@@ -125,7 +125,7 @@
     <p class="hint">Sans <code class="inline">sudo</code> · installe dans <code class="inline">~/.local/bin</code> · démarre à chaque ouverture de session</p>
     <div class="links">
       <a class="btn" href="https://github.com/loicjazon/forti-watch">Voir sur GitHub</a>
-      <a class="btn" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
+      <a class="btn" id="latest" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
     </div>
   </div>
 </header>
@@ -195,6 +195,17 @@
       navigator.clipboard.writeText(text).then(done, function () {});
     }
   });
+
+  // Numéro de la dernière release, pour le comparer à celui affiché par l'installateur.
+  // En cas d'échec (hors-ligne, limite de l'API GitHub), le bouton garde son texte sans numéro.
+  fetch('https://api.github.com/repos/loicjazon/forti-watch/releases/latest')
+    .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+    .then(function (release) {
+      if (/^v\d+\.\d+\.\d+$/.test(release.tag_name)) {
+        document.getElementById('latest').textContent = 'Dernière version : ' + release.tag_name;
+      }
+    })
+    .catch(function () {});
 </script>
 </body>
 </html>
