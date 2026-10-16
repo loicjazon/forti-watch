@@ -116,12 +116,24 @@ fi
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
+# Version à installer, lue dans la redirection de « releases/latest » (ex. v1.1.0). Vide si on ne la
+# connaît pas (URL de téléchargement personnalisée, réseau) : l'installation continue sans l'afficher.
+VERSION=""
+if [ -z "${FORTI_WATCH_DOWNLOAD_URL:-}" ]; then
+  begin "Recherche de la dernière version"
+  latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)"
+  case "$latest_url" in
+    */releases/tag/v[0-9]*) VERSION="${latest_url##*/releases/tag/}" ;;
+  esac
+  clear_pending
+fi
+
 begin "Téléchargement"
 for file in "$ASSET" "$ASSET.sha256"; do
   curl -fsSL -o "$tmp_dir/$file" "$DOWNLOAD_URL/$file" 2>/dev/null ||
     fail "téléchargement impossible ($DOWNLOAD_URL/$file)."
 done
-ok "Téléchargement"
+ok "Téléchargement${VERSION:+ de la version $VERSION}"
 
 begin "Vérification de l'empreinte SHA-256"
 (cd "$tmp_dir" && sha256sum -c "$ASSET.sha256" >/dev/null 2>&1) ||
@@ -131,7 +143,7 @@ ok "Empreinte SHA-256 vérifiée"
 mkdir -p "$BIN_DIR" "$AUTOSTART_DIR"
 pkill -x forti-watch || true
 install -m 755 "$tmp_dir/$ASSET" "$BIN_DIR/forti-watch"
-ok "Installé dans $BIN_DIR/forti-watch"
+ok "Installé dans $BIN_DIR/forti-watch${VERSION:+ ($VERSION)}"
 
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
@@ -147,9 +159,9 @@ ok "Lancement automatique activé"
 printf '\n'
 if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
   setsid nohup "$BIN_DIR/forti-watch" >/dev/null 2>&1 &
-  printf '  %sforti-watch est installé et démarré.%s\n' "$BOLD" "$RESET"
+  printf '  %sforti-watch%s est installé et démarré.%s\n' "$BOLD" "${VERSION:+ $VERSION}" "$RESET"
   printf '  %sIl se lancera à chaque ouverture de session.%s\n\n' "$DIM" "$RESET"
 else
-  printf '  %sforti-watch est installé.%s\n' "$BOLD" "$RESET"
+  printf '  %sforti-watch%s est installé.%s\n' "$BOLD" "${VERSION:+ $VERSION}" "$RESET"
   printf '  %sIl se lancera à la prochaine ouverture de session.%s\n\n' "$DIM" "$RESET"
 fi
