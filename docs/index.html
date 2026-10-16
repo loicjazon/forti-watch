@@ -82,7 +82,7 @@
     background: var(--shot-bg); border-radius: 8px; padding: 12px;
     display: flex; align-items: center; justify-content: center; min-height: 120px;
   }
-  .states .shot { height: 120px; }
+  .states .shot { min-height: 0; }
   .shot img { max-width: 100%; height: auto; display: block; }
   figcaption { margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
   figcaption strong { color: var(--text); display: block; font-size: 1rem; }
@@ -135,15 +135,15 @@
     <p class="sub">Le logo et un texte en haut à droite de l'écran, mis à jour chaque minute.</p>
     <div class="states">
       <figure class="card">
-        <div class="shot"><img src="images/indicateur-connecte.svg" width="280" height="93" alt="Logo et texte « 7h21 »"></div>
+        <div class="shot"><img src="images/indicateur-connecte.svg" width="240" height="72" alt="Logo et texte « 7h21 »"></div>
         <figcaption><strong>Connecté</strong>Le temps restant avant la coupure de la session.</figcaption>
       </figure>
       <figure class="card">
-        <div class="shot"><img src="images/indicateur-urgent.svg" width="280" height="93" alt="Logo et texte « 9 min »"></div>
+        <div class="shot"><img src="images/indicateur-urgent.svg" width="240" height="72" alt="Logo et texte « 9 min »"></div>
         <figcaption><strong>15 min ou moins</strong>Le texte indique les minutes restantes.</figcaption>
       </figure>
       <figure class="card">
-        <div class="shot"><img src="images/indicateur-vpn-off.svg" width="280" height="93" alt="Logo et texte « VPN off »"></div>
+        <div class="shot"><img src="images/indicateur-vpn-off.svg" width="240" height="72" alt="Logo et texte « VPN off »"></div>
         <figcaption><strong>VPN coupé</strong>La prochaine connexion repart de zéro.</figcaption>
       </figure>
     </div>
