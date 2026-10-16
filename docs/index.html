@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>forti-watch : le temps restant de votre session VPN</title>
 <link rel="icon" type="image/svg+xml" href="images/logo.svg">
-<meta name="description" content="Outil Linux qui affiche le temps restant de la session VPN FortiClient et prévient 1 h puis 15 min avant la coupure.">
+<meta name="description" content="Outil Linux et macOS qui affiche le temps restant de la session VPN FortiClient et prévient 1 h puis 15 min avant la coupure.">
 <style>
   :root {
     --bg: #f6f7f9;
@@ -63,6 +63,8 @@
   .install button:hover { background: #2a313a; }
   .install button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .hero .platforms { margin: -16px auto 20px; }
+  h3.os { font-size: 1.05rem; margin: 20px 0 4px; }
   .links { margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .btn {
     display: inline-block; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px;
@@ -118,6 +120,7 @@
     <img class="logo" src="images/logo.svg" alt="" width="96" height="96">
     <h1>forti<span>-watch</span></h1>
     <p class="lead">Le temps restant de votre session VPN FortiClient, avec une alerte avant la&nbsp;coupure.</p>
+    <p class="hint platforms">Pour <strong>Linux</strong> et <strong>macOS</strong> (Intel et Apple&nbsp;Silicon) · une seule commande</p>
     <div class="install">
       <code id="cmd">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh</code>
       <button type="button" id="copy" aria-label="Copier la commande d'installation">Copier</button>
@@ -133,7 +136,7 @@
 <main class="wrap">
   <section id="apercu">
     <h2>Aperçu</h2>
-    <p class="sub">Le logo et un texte en haut à droite de l'écran, mis à jour chaque minute.</p>
+    <p class="sub">Un texte en haut à droite de l'écran (barre supérieure sous Linux, barre des menus sur Mac), mis à jour chaque minute.</p>
     <div class="states">
       <figure class="card">
         <div class="shot"><img src="images/indicateur-connecte.svg" width="240" height="72" alt="Logo et texte « 7h21 »"></div>
@@ -159,17 +162,23 @@
     <p class="sub">Aucun réglage : il se lance tout seul et se fait oublier.</p>
     <ol class="steps">
       <li>Chaque minute, il lit la <strong>durée de connexion</strong> que FortiClient affiche. La fin de session est donc exacte, même s'il démarre en cours de route.</li>
-      <li>Il affiche le <strong>temps restant</strong> avant la coupure (session de 8 h) dans la barre supérieure.</li>
+      <li>Il affiche le <strong>temps restant</strong> avant la coupure (session de 8 h) dans la barre supérieure, ou la barre des menus sur Mac.</li>
       <li>Il ouvre une <strong>alerte</strong> quand il reste 1 h, puis 15 min.</li>
     </ol>
   </section>
 
   <section id="prerequis">
     <h2>Prérequis</h2>
+    <h3 class="os">Linux</h3>
     <ul class="req">
       <li>Ubuntu 22.04 ou plus récent, avec un bureau graphique (GNOME testé).</li>
       <li>FortiClient installé dans <code class="inline">/opt/forticlient/</code> (testé avec la 7.4.3).</li>
       <li>L'extension GNOME « AppIndicator » (activée par défaut sur Ubuntu) pour l'icône de la barre.</li>
+    </ul>
+    <h3 class="os">macOS</h3>
+    <ul class="req">
+      <li>macOS 11 ou plus récent, Intel ou Apple Silicon.</li>
+      <li>FortiClient avec son VPN installé (testé avec la 7.4.3) : forti-watch lit son état avec l'outil système <code class="inline">scutil</code>.</li>
     </ul>
   </section>
 </main>
