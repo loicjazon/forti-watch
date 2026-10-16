@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 93" role="img" aria-labelledby="t">
+  <title id="t">Logo et texte « 9 min »</title>
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0483C"/>
+      <stop offset="1" stop-color="#BF1F17"/>
+    </linearGradient>
+  </defs>
+  <rect width="280" height="93" fill="#1b1b1d"/>
+  <!-- Logo (voir logo.svg) -->
+  <g transform="translate(48 16) scale(.469)">
+    <path fill="url(#shield)" d="M64 7 108 22.5v39.5c0 29-18.500 47.500-44 59C38.500 109.500 20 91 20 62V22.500Z"/>
+    <circle cx="64" cy="66" r="27" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="7"/>
+    <path d="M64 39A27 27 0 1 1 37 66" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <path d="M64 51V66H77" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="122" y="61" fill="#eeeeec" font-family="Ubuntu, Cantarell, 'DejaVu Sans', sans-serif" font-size="38">9 min</text>
+</svg>
