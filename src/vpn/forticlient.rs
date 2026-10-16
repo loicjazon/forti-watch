@@ -1,6 +1,6 @@
 //! FortiClient sous Linux : `forticlient-cli vpn status`.
 
-use super::Status;
+use super::{Status, field};
 use std::process::Command;
 use std::time::Duration;
 
@@ -46,16 +46,6 @@ pub fn parse_status(output: &str) -> Option<Status> {
 
     let elapsed = parse_duration(field(output, "Duration")?)?;
     Some(Status::Connected { elapsed })
-}
-
-/// Valeur de la ligne `<name>: <valeur>` (les lignes de détail sont indentées).
-fn field<'a>(output: &'a str, name: &str) -> Option<&'a str> {
-    output.lines().find_map(|line| {
-        line.trim()
-            .strip_prefix(name)?
-            .strip_prefix(':')
-            .map(str::trim)
-    })
 }
 
 /// `HH:MM:SS` (les heures peuvent dépasser 24) -> durée.
