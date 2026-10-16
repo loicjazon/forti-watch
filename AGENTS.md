@@ -69,8 +69,9 @@ Règles de fonctionnement à ne pas casser :
   (description en minuscule, sans point final, ≤ 72 caractères).
 - Branche par défaut : `main` (les URL de `install.sh` et du README en dépendent).
 - Identité git **locale** au dépôt : l'adresse noreply GitHub, jamais un email professionnel.
-- Remote SSH : `git@github-equitation:loicjazon/forti-watch.git` (alias de `~/.ssh/config` qui s'authentifie en
-  `loicjazon` ; `git@github.com` donnerait un autre compte sur cette machine).
+- Pousser avec le compte GitHub `loicjazon`. Si un autre compte est configuré par défaut sur la machine, passer par
+  un alias SSH dédié (`~/.ssh/config`) ou par `gh auth` en HTTPS, qui doit avoir le droit `workflow` pour modifier
+  `.github/workflows/` (`gh auth refresh -h github.com -s workflow`).
 
 ## Pièges connus
 
