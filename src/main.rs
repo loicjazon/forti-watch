@@ -2,6 +2,9 @@ mod config;
 #[cfg(target_os = "linux")]
 #[path = "linux/mod.rs"]
 mod platform;
+#[cfg(target_os = "macos")]
+#[path = "macos/mod.rs"]
+mod platform;
 mod session;
 #[cfg(test)]
 mod test_support;
