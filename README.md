@@ -26,13 +26,6 @@ L'indicateur de la barre supérieure, selon la situation :
 |---|---|---|
 | ![Logo et « 7h21 »](docs/images/indicateur-connecte.svg) | ![Logo et « 9 min »](docs/images/indicateur-urgent.svg) | ![Logo et « VPN off »](docs/images/indicateur-vpn-off.svg) |
 
-La fenêtre d'alerte, ouverte 1 h puis 15 min avant la coupure (sur Mac, une seule à la fois : elle se met à
-jour si une autre arrive) :
-
-| Linux | macOS |
-|---|---|
-| ![Fenêtre Linux « Coupure du VPN imminente » : 1h00 restantes](docs/images/fenetre-alerte.png) | <img src="docs/images/fenetre-alerte-macos.png" width="260" alt="Alerte macOS « Coupure du VPN imminente : 1h00 »"> |
-
 ## Prérequis
 
 ### Linux
