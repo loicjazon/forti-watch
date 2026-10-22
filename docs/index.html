@@ -106,8 +106,6 @@
     font: 15px/1.75 var(--font-code); color: var(--text-primary);
   }
   .terminal .prompt { color: var(--text-muted); }
-  .terminal .out { display: block; margin: 6px 0 0; }
-  .terminal .out b { color: var(--success); font-weight: 600; }
   .terminal .ok { color: var(--success); }
 
   /* Ligne de commande d'installation */
@@ -164,6 +162,22 @@
   .link-icon { flex: none; color: var(--text-primary); }
   .link-card .arrow { position: absolute; right: 18px; bottom: 14px; font: 18px var(--font-code); color: var(--text-muted); transition: color .15s, transform .15s; }
   .link-card:hover .arrow { color: var(--accent); transform: translateX(3px); }
+
+  /* Simulation de l'installation */
+  .install-demo .replay {
+    position: absolute; right: 8px; border: 1px solid var(--border-default); border-radius: var(--radius);
+    background: transparent; color: var(--text-secondary); padding: 3px 10px; font: 12px var(--font-code); cursor: pointer;
+  }
+  .install-demo .replay:hover { border-color: var(--accent); color: var(--accent); }
+  .install-demo pre { font-size: 14px; }
+  .install-demo .brand-line { color: var(--accent); font-weight: 600; }
+  .install-demo .dim { color: var(--text-muted); }
+  .install-demo b { font-weight: 600; }
+  .install-demo .caret {
+    display: inline-block; width: .6em; height: 1.1em; vertical-align: text-bottom; background: var(--text-muted);
+    animation: caret 1s steps(1) infinite;
+  }
+  @keyframes caret { 50% { opacity: 0; } }
 
   /* Sections */
   section { border-top: 1px solid var(--border-default); padding: 32px 0 36px; }
@@ -242,21 +256,26 @@
         <a class="btn" id="latest" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
       </div>
     </div>
-    <div class="terminal" role="img" aria-label="Exemple : VPN connecté, 7 h 21 min restantes, prochaine alerte dans 6 h 21 min, session de 9 h 14 à 17 h 14">
+    <div class="terminal install-demo">
       <div class="bar">
         <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title">forti-watch — 80×24</span>
+        <span class="title">installation</span>
+        <button type="button" class="replay" id="install-replay" hidden>Rejouer</button>
       </div>
-      <pre aria-hidden="true"><span class="prompt">$ </span>forti-watch
-<span class="out">VPN : <b>Connecté</b>
-Temps restant : 7h 21min
-Prochaine alerte : dans 6h 21min
+      <pre id="install-demo" role="img" aria-label="Exemple d'installation : système compatible, FortiClient trouvé, téléchargement, empreinte SHA-256 vérifiée, installation dans ~/.local/bin et lancement automatique activé"><span class="prompt">$ </span>curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh
 
-Session : 8h (max)
-Début : 09:14
-Fin : 17:14
+  <span class="brand-line">forti-watch</span>
+  <span class="dim">Le temps restant de votre session VPN</span>
 
-<span class="ok">✓</span> Surveillance active</span></pre>
+  <span class="ok">✓</span> Système compatible (macOS arm64)
+  <span class="ok">✓</span> FortiClient trouvé
+  <span class="ok">✓</span> Téléchargement
+  <span class="ok">✓</span> Empreinte SHA-256 vérifiée
+  <span class="ok">✓</span> Installé dans ~/.local/bin/forti-watch
+  <span class="ok">✓</span> Lancement automatique activé
+
+  <b>forti-watch est installé et démarré.</b>
+  <span class="dim">Il se lancera à chaque ouverture de session.</span></pre>
     </div>
     </div>
   </div>
@@ -412,6 +431,114 @@ Fin : 17:14
     });
   });
 
+  // Simulation de l'installation : reprend les messages d'install.sh, dans le même ordre.
+  var demo = document.getElementById('install-demo');
+  var replay = document.getElementById('install-replay');
+  var version = '';
+  var isLinux = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+  var currentRun = 0;
+  var finished = false;
+  var hasPlayed = false;
+
+  function installSteps() {
+    var system = isLinux
+      ? [['Vérification du système', 'Système compatible (Linux x86_64)'],
+         ['Recherche de GTK3', 'GTK3 présent'],
+         [null, "Bibliothèque de l'indicateur présente"],
+         [null, 'FortiClient trouvé']]
+      : [['Vérification du système', 'Système compatible (macOS arm64)'],
+         [null, 'FortiClient trouvé']];
+    return system.concat([
+      ['Téléchargement', 'Téléchargement' + (version ? ' de la version ' + version : '')],
+      ["Vérification de l'empreinte SHA-256", 'Empreinte SHA-256 vérifiée'],
+      [null, 'Installé dans ~/.local/bin/forti-watch' + (version ? ' (' + version + ')' : '')],
+      [null, 'Lancement automatique activé']
+    ]);
+  }
+
+  function append(className, text) {
+    var node = className ? document.createElement(className === 'b' ? 'b' : 'span') : document.createTextNode(text);
+    if (className) {
+      if (className !== 'b') { node.className = className; }
+      node.textContent = text;
+    }
+    demo.appendChild(node);
+    return node;
+  }
+
+  async function playInstall(instant) {
+    var run = ++currentRun;
+    var pause = function (delay) {
+      return instant ? Promise.resolve() : new Promise(function (resolve) { setTimeout(resolve, delay); });
+    };
+    var stale = function () { return run !== currentRun; };
+    finished = false;
+    replay.hidden = true;
+    demo.textContent = '';
+    append('prompt', '$ ');
+    var command = append('', '');
+    var caret = append('caret', '');
+    var text = document.querySelector('[data-cmd]').textContent;
+    if (instant) {
+      command.textContent = text;
+    } else {
+      for (var index = 0; index < text.length; index++) {
+        command.textContent += text[index];
+        await pause(18);
+        if (stale()) { return; }
+      }
+      await pause(450);
+      if (stale()) { return; }
+    }
+    caret.remove();
+    append('', '\n\n  ');
+    append('brand-line', 'forti-watch');
+    append('', '\n  ');
+    append('dim', 'Le temps restant de votre session VPN');
+    append('', '\n\n');
+    await pause(350);
+    var steps = installSteps();
+    for (var position = 0; position < steps.length; position++) {
+      if (stale()) { return; }
+      var waiting = null;
+      if (steps[position][0]) {
+        waiting = append('dim', '  … ' + steps[position][0]);
+        await pause(700);
+        if (stale()) { return; }
+        waiting.remove();
+      }
+      append('', '  ');
+      append('ok', '✓');
+      append('', ' ' + steps[position][1] + '\n');
+      await pause(220);
+    }
+    if (stale()) { return; }
+    append('', '\n  ');
+    append('b', 'forti-watch' + (version ? ' ' + version : '') + ' est installé et démarré.');
+    append('', '\n  ');
+    append('dim', 'Il se lancera à chaque ouverture de session.');
+    finished = true;
+    if (!instant) { hasPlayed = true; }
+    replay.hidden = !hasPlayed;
+  }
+
+  if (demo) {
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Le HTML contient déjà le rendu final : sa hauteur fixe celle du panneau pendant l'animation.
+    finished = true;
+    demo.style.minHeight = demo.offsetHeight + 'px';
+    replay.addEventListener('click', function () { playInstall(false); });
+    if (!reducedMotion && 'IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) {
+          observer.disconnect();
+          playInstall(false);
+        }
+      }, { threshold: 0.5 });
+      observer.observe(demo);
+    }
+  }
+
   // Numéro de la dernière release, pour le comparer à celui affiché par l'installateur.
   // En cas d'échec (hors-ligne, limite de l'API GitHub), le bouton garde son texte sans numéro.
   fetch('https://api.github.com/repos/loicjazon/forti-watch/releases/latest')
@@ -419,6 +546,13 @@ Fin : 17:14
     .then(function (release) {
       if (/^v\d+\.\d+\.\d+$/.test(release.tag_name)) {
         document.getElementById('latest').textContent = 'Dernière version : ' + release.tag_name;
+        version = release.tag_name;
+        if (demo && finished) {
+          playInstall(true).then(function () {
+            demo.style.minHeight = '';
+            demo.style.minHeight = demo.offsetHeight + 'px';
+          });
+        }
       }
     })
     .catch(function () {});
