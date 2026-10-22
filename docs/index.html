@@ -1,212 +1,415 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="rouge" data-mode="dark">
 <head>
 <meta charset="utf-8">
+<meta name="theme-color" content="#080f17">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>forti-watch : le temps restant de votre session VPN</title>
 <link rel="icon" type="image/svg+xml" href="images/logo.svg">
 <meta name="description" content="Outil Linux et macOS qui affiche le temps restant de la session VPN FortiClient et prévient 1 h puis 15 min avant la coupure.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@400;600&family=Martian+Mono:wght@500;700&display=swap">
 <style>
+  /* Design « terminal », accent rouge (celui du logo), mode sombre. */
   :root {
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --text: #1b1f24;
-    --muted: #5b6573;
-    --border: #dde1e7;
-    --accent: #c2410c;
-    --code-bg: #14181d;
-    --code-text: #e6edf3;
-    --shot-bg: #14181d;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1216;
-      --surface: #171b21;
-      --text: #e8ecf1;
-      --muted: #9aa5b4;
-      --border: #272d36;
-      --accent: #fb923c;
-      --code-bg: #0a0d10;
-      --code-text: #e6edf3;
-      --shot-bg: #0a0d10;
-    }
+    color-scheme: dark;
+    --bg-primary: #080f17;
+    --bg-secondary: #0b1520;
+    --bg-surface: #101b28;
+    --border-default: #26384a;
+    --border-hover: #42617d;
+    --text-primary: #f2f6fc;
+    --text-secondary: #b1bfce;
+    --text-muted: #91a3b7;
+    --accent: #ff5a4f;
+    --accent-hover: #ff8a80;
+    --accent-foreground: #080f17;
+    --success: #35c98a;
+    --warning: #ffbd4a;
+    --danger: #ff5e69;
+    --container-width: 1200px;
+    --reading-width: 720px;
+    --radius: 4px;
+    --font-heading: 'Martian Mono', 'IBM Plex Mono', ui-monospace, monospace;
+    --font-body: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+    --font-code: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: 16px/1.65 var(--font-body);
   }
-  a { color: var(--accent); }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
-  header.hero { padding: 64px 0 40px; text-align: center; }
-  .hero .logo { display: block; margin: 0 auto 16px; }
-  .hero h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 12px; letter-spacing: -0.02em; }
-  .hero h1 span { color: var(--accent); }
-  .hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 36em; margin: 0 auto 28px; text-wrap: balance; }
-  .install {
-    display: flex; align-items: stretch; max-width: 100%;
-    margin: 0 auto 14px; border-radius: 10px; overflow: hidden;
-    background: var(--code-bg); text-align: left;
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:hover { color: var(--accent-hover); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wrap { max-width: var(--container-width); margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 760px) { .wrap { padding: 0 32px; } }
+  .accent { color: var(--accent); }
+  h1, h2, h3 { font-family: var(--font-heading); line-height: 1.2; font-weight: 700; }
+  .eyebrow {
+    font: 12px/1.4 var(--font-code); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 12px;
   }
-  .install code {
-    flex: 1; min-width: 0; padding: 14px 16px; color: var(--code-text);
-    font: 0.9rem/1.5 ui-monospace, "Ubuntu Mono", Menlo, Consolas, monospace;
-    overflow-x: auto; white-space: nowrap;
+
+  /* Navigation */
+  .topbar { border-bottom: 1px solid var(--border-default); }
+  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font: 700 16px var(--font-heading); color: var(--text-primary); text-decoration: none;
   }
-  .install button {
-    border: 0; border-left: 1px solid #2a313a; background: #1f252d; color: #e6edf3;
-    padding: 0 18px; font: inherit; font-size: 0.9rem; cursor: pointer;
-  }
-  .install button:hover { background: #2a313a; }
-  .install button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
-  .platforms {
-    list-style: none; padding: 0; margin: -12px auto 24px;
-    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-  }
+  .brand:hover { color: var(--text-primary); }
+  .topbar nav { display: flex; gap: 20px; font: 13px var(--font-code); }
+  .topbar nav a { color: var(--text-secondary); text-decoration: none; }
+  .topbar nav a:hover { color: var(--accent); }
+  @media (max-width: 640px) { .topbar nav .hide-sm { display: none; } }
+
+  /* En-tête */
+  .hero { padding: 48px 0 40px; display: grid; gap: 48px; align-items: center; }
+  @media (min-width: 960px) { .hero { grid-template-columns: 1fr 1fr; padding: 64px 0 48px; } }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); margin: 0 0 20px; letter-spacing: -0.03em; }
+  .hero p.lead { font-size: 1.15rem; color: var(--text-secondary); max-width: 32em; margin: 0 0 28px; text-wrap: balance; }
+  .platforms { list-style: none; padding: 0; margin: 0 0 28px; display: flex; gap: 8px; flex-wrap: wrap; }
   .platforms li {
-    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
-    border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
-    font-weight: 600; font-size: 0.95rem;
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
+    border: 1px solid var(--border-default); border-radius: var(--radius);
+    font: 13px var(--font-code); color: var(--text-primary);
   }
-  .platforms svg { flex: none; }
-  .platforms small { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
-  h3.os { font-size: 1.05rem; margin: 20px 0 4px; }
-  .links { margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .platforms svg { flex: none; color: var(--text-secondary); }
+  .platforms small { color: var(--text-muted); font-size: 12px; }
+  .links { display: flex; gap: 12px; flex-wrap: wrap; }
   .btn {
-    display: inline-block; padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.95rem;
+    display: inline-block; padding: 11px 18px; border: 1px solid var(--border-default); border-radius: var(--radius);
+    color: var(--text-primary); text-decoration: none; font: 14px var(--font-code);
+    transition: border-color .15s, background-color .15s, color .15s;
   }
-  .btn:hover { border-color: var(--accent); }
-  section { padding: 36px 0; }
-  h2 { font-size: 1.5rem; margin: 0 0 8px; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
-  .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+  .btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-foreground); font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-foreground); }
+
+  /* Panneau terminal */
+  .terminal { border: 1px solid var(--border-default); border-radius: var(--radius); background: var(--bg-secondary); min-width: 0; }
+  .terminal .bar {
+    position: relative; display: flex; align-items: center; justify-content: center; height: 40px;
+    border-bottom: 1px solid var(--border-default); font: 12px var(--font-code); color: var(--text-muted);
+  }
+  .terminal .dots { position: absolute; left: 16px; display: inline-flex; gap: 7px; }
+  .terminal .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--danger); }
+  .terminal .dots i:nth-child(2) { background: var(--warning); }
+  .terminal .dots i:nth-child(3) { background: var(--success); }
+  .terminal pre {
+    margin: 0; padding: 20px; white-space: pre-wrap; overflow-wrap: anywhere;
+    font: 15px/1.75 var(--font-code); color: var(--text-primary);
+  }
+  .terminal .prompt { color: var(--text-muted); }
+  .terminal .out { display: block; margin: 6px 0 0; }
+  .terminal .out b { color: var(--success); font-weight: 600; }
+  .terminal .ok { color: var(--success); }
+
+  /* Ligne de commande d'installation */
+  .cmdline {
+    display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px;
+    border: 1px solid var(--border-default); border-radius: var(--radius); background: var(--bg-secondary);
+  }
+  .cmdline pre {
+    flex: 1; min-width: 0; margin: 0; padding: 10px 0; white-space: pre-wrap; overflow-wrap: anywhere;
+    font: 15px/1.7 var(--font-code); color: var(--accent);
+  }
+  .cmdline .prompt { color: var(--text-muted); user-select: none; }
+  .cmdline button {
+    flex: none; display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border-default); border-radius: var(--radius); background: transparent;
+    color: var(--text-primary); padding: 10px 16px; font: 14px var(--font-code); cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .cmdline button:hover { border-color: var(--accent); color: var(--accent); }
+  .checks {
+    list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-wrap: wrap;
+    gap: 12px 40px;
+    font: 14px/1.5 var(--font-code); color: var(--text-secondary);
+  }
+  @media (min-width: 760px) { .checks li { white-space: nowrap; } }
+  @media (min-width: 1100px) { .checks { justify-content: space-between; } }
+  .checks li { display: flex; align-items: center; gap: 12px; }
+  .checks svg { flex: none; color: var(--accent); }
+
+  /* Aperçu : états de l'indicateur */
+  .status-card { --state: var(--success); }
+  .status-card.warn { --state: var(--warning); }
+  .status-card.off { --state: var(--danger); }
+  .status { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font: 600 14px var(--font-code); }
+  .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--state); }
+  .menubar {
+    display: flex; align-items: center; justify-content: flex-end; gap: 16px; height: 44px; padding: 0 14px;
+    background: #1b1f26; border: 1px solid var(--border-default); border-radius: var(--radius); color: #c9d1db;
+  }
+  .menubar .sys { flex: none; opacity: .75; }
+  .indicator { display: inline-flex; align-items: center; gap: 8px; font: 500 15px var(--font-code); color: #f2f6fc; white-space: nowrap; }
+  .status-card figcaption { margin-top: 16px; }
+  .value-line { display: block; font: 600 15px var(--font-code); color: var(--text-primary); margin-bottom: 6px; }
+  .value-line b { color: var(--state); font-weight: 600; }
+
+  /* Liens utiles */
+  .links-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .link-card {
+    position: relative; display: flex; gap: 16px; padding-bottom: 40px;
+    color: var(--text-secondary); text-decoration: none; font-size: 0.95rem;
+  }
+  .link-card:hover { color: var(--text-secondary); border-color: var(--accent); }
+  .link-card strong { display: block; margin-bottom: 6px; font: 600 15px var(--font-heading); color: var(--text-primary); }
+  .link-icon { flex: none; color: var(--text-primary); }
+  .link-card .arrow { position: absolute; right: 18px; bottom: 14px; font: 18px var(--font-code); color: var(--text-muted); transition: color .15s, transform .15s; }
+  .link-card:hover .arrow { color: var(--accent); transform: translateX(3px); }
+
+  /* Sections */
+  section { border-top: 1px solid var(--border-default); padding: 32px 0 36px; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 24px; margin-bottom: 20px; }
+  .section-head .eyebrow { margin-bottom: 8px; }
+  h2 { font-size: clamp(1.4rem, 3vw, 1.8rem); margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--text-secondary); margin: 0; font: 13px/1.6 var(--font-code); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
   figure { margin: 0; }
   .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
-    height: 100%;
+    background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius);
+    padding: 16px 20px; height: 100%; transition: border-color .15s;
   }
-  .shot {
-    background: var(--shot-bg); border-radius: 8px; padding: 12px;
-    display: flex; align-items: center; justify-content: center; min-height: 120px;
-  }
-  .states .shot { min-height: 0; }
-  .shot img { max-width: 100%; height: auto; display: block; }
-  figcaption { margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
-  figcaption strong { color: var(--text); display: block; font-size: 1rem; }
-  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 14px; }
-  ol.steps li {
-    counter-increment: step; position: relative; padding: 14px 16px 14px 56px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-  }
-  ol.steps li::before {
-    content: counter(step); position: absolute; left: 16px; top: 14px;
-    width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--bg);
-    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
-  }
-  ul.req { margin: 0; padding-left: 1.2em; }
-  ul.req li { margin: 6px 0; }
-  footer { border-top: 1px solid var(--border); padding: 28px 0 48px; color: var(--muted); font-size: 0.92rem; }
-  footer p { margin: 6px 0; }
+  .card:hover { border-color: var(--border-hover); }
+  figcaption { margin-top: 12px; font-size: 0.95rem; color: var(--text-secondary); }
+  figcaption strong { color: var(--text-primary); display: block; font: 600 14px/1.5 var(--font-heading); margin-bottom: 4px; }
+  .num { display: block; font: 13px var(--font-code); color: var(--accent); margin-bottom: 12px; }
+  ol.steps { list-style: none; padding: 0; margin: 0; }
+  ol.steps li { color: var(--text-secondary); }
+  ol.steps h3 { font-size: 14px; color: var(--text-primary); margin: 0 0 8px; }
+  ol.steps strong, ul.req strong { color: var(--text-primary); }
+  .req-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  h3.os { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  ul.req { margin: 0; padding: 0; list-style: none; color: var(--text-secondary); }
+  ul.req li { margin: 10px 0 0; padding-left: 20px; position: relative; }
+  ul.req li::before { content: "›"; position: absolute; left: 4px; color: var(--accent); font-family: var(--font-code); }
   code.inline {
-    font: 0.88em ui-monospace, "Ubuntu Mono", Menlo, Consolas, monospace;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+    font: 0.86em var(--font-code); color: var(--text-primary);
+    background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); padding: 1px 5px;
     overflow-wrap: anywhere;
+  }
+
+  footer { border-top: 1px solid var(--border-default); padding: 28px 0 36px; color: var(--text-muted); font-size: 0.92rem; }
+  .footer-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+  .footer-brand { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin: 0; }
+  .footer-links { display: flex; flex-wrap: wrap; align-items: center; font: 13px var(--font-code); }
+  .footer-links a { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; }
+  .footer-links a:hover { color: var(--accent); }
+  .footer-links a + a::before { content: "|"; color: var(--border-hover); margin: 0 14px; }
+  @media (max-width: 640px) {
+    .footer-links { gap: 8px 20px; }
+    .footer-links a + a::before { display: none; }
+  }
+  .footer-note { margin: 16px 0 0; font: 12px/1.6 var(--font-code); }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
   }
 </style>
 </head>
 <body>
-<header class="hero">
+<header class="topbar">
   <div class="wrap">
-    <img class="logo" src="images/logo.svg" alt="" width="96" height="96">
-    <h1>forti<span>-watch</span></h1>
-    <p class="lead">Le temps restant de votre session VPN FortiClient, avec une alerte avant la&nbsp;coupure.</p>
-    <ul class="platforms" aria-label="Systèmes pris en charge">
-      <li><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></svg>Linux</li>
-      <li><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS <small>Intel et Apple&nbsp;Silicon</small></li>
-    </ul>
-    <div class="install">
-      <code id="cmd">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh</code>
-      <button type="button" id="copy" aria-label="Copier la commande d'installation">Copier</button>
-    </div>
-    <p class="hint">Sans <code class="inline">sudo</code> · installe dans <code class="inline">~/.local/bin</code> · démarre à chaque ouverture de session</p>
-    <div class="links">
-      <a class="btn" href="https://github.com/loicjazon/forti-watch">Voir sur GitHub</a>
-      <a class="btn" id="latest" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
-    </div>
+    <a class="brand" href="#top"><img src="images/logo.svg" alt="" width="28" height="28"><span>forti<span class="accent">-watch</span></span></a>
+    <nav aria-label="Sections">
+      <a class="hide-sm" href="#apercu">aperçu</a>
+      <a class="hide-sm" href="#fonctionnement">fonctionnement</a>
+      <a class="hide-sm" href="#prerequis">prérequis</a>
+      <a href="https://github.com/loicjazon/forti-watch">github ↗</a>
+    </nav>
   </div>
 </header>
 
+<div class="wrap" id="top">
+  <div class="hero">
+    <div>
+      <h1>forti<span class="accent">-watch</span></h1>
+      <p class="lead">Le temps restant de votre session VPN FortiClient, avec une alerte avant la&nbsp;coupure.</p>
+      <ul class="platforms" aria-label="Systèmes pris en charge">
+        <li><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></svg>Linux</li>
+        <li><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS <small>Intel et Apple&nbsp;Silicon</small></li>
+      </ul>
+      <div class="links">
+        <a class="btn primary" href="#installation">Installer →</a>
+        <a class="btn" id="latest" href="https://github.com/loicjazon/forti-watch/releases/latest">Dernière version</a>
+      </div>
+    </div>
+    <div class="terminal" role="img" aria-label="Exemple : VPN connecté, 7 h 21 min restantes, prochaine alerte dans 6 h 21 min, session de 9 h 14 à 17 h 14">
+      <div class="bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title">forti-watch — 80×24</span>
+      </div>
+      <pre aria-hidden="true"><span class="prompt">$ </span>forti-watch
+<span class="out">VPN : <b>Connecté</b>
+Temps restant : 7h 21min
+Prochaine alerte : dans 6h 21min
+
+Session : 8h (max)
+Début : 09:14
+Fin : 17:14
+
+<span class="ok">✓</span> Surveillance active</span></pre>
+    </div>
+    </div>
+  </div>
+</div>
+
 <main class="wrap">
+  <section id="installation">
+    <div class="section-head">
+      <div>
+      <p class="eyebrow">[ 01 ]</p>
+      <h2>Installation</h2>
+      </div>
+      <p class="sub">Une seule commande, sans sudo.</p>
+    </div>
+    <div class="cmdline">
+      <pre><span class="prompt" aria-hidden="true">$ </span><code data-cmd>curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh</code></pre>
+      <button type="button" data-copy aria-label="Copier la commande d'installation"><svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copier</span></button>
+    </div>
+    <ul class="checks">
+      <li><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="var(--accent-foreground)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Aucune permission <code class="inline">sudo</code> requise</li>
+      <li><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="var(--accent-foreground)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Installation dans <code class="inline">~/.local/bin</code></li>
+      <li><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="var(--accent-foreground)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Lancement automatique au démarrage</li>
+    </ul>
+  </section>
   <section id="apercu">
-    <h2>Aperçu</h2>
-    <p class="sub">Un texte en haut à droite de l'écran, mis à jour chaque minute.</p>
-    <div class="states">
-      <figure class="card">
-        <div class="shot"><img src="images/indicateur-connecte.svg" width="240" height="72" alt="Logo et texte « 7h21 »"></div>
-        <figcaption><strong>Connecté</strong>Le temps restant avant la coupure de la session.</figcaption>
+    <div class="section-head">
+      <div>
+      <p class="eyebrow">[ 02 ]</p>
+      <h2>Aperçu</h2>
+      </div>
+      <p class="sub">Une information claire dans votre barre système.</p>
+    </div>
+    <div class="grid">
+      <figure class="card status-card ok">
+        <p class="status"><span class="dot" aria-hidden="true"></span>VPN connecté</p>
+        <div class="menubar" role="img" aria-label="Barre système : logo et texte « 7h21 »"><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.6a10 10 0 0 1 14 0M8.5 16.3a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg><span class="indicator"><img src="images/logo.svg" alt="" width="20" height="20">7h21</span></div>
+        <figcaption><span class="value-line">Temps restant : <b>7h 21min</b></span>Affichage discret dans la barre système, mis à jour chaque minute.</figcaption>
       </figure>
-      <figure class="card">
-        <div class="shot"><img src="images/indicateur-urgent.svg" width="240" height="72" alt="Logo et texte « 9 min »"></div>
-        <figcaption><strong>15 min ou moins</strong>Le texte indique les minutes restantes.</figcaption>
+      <figure class="card status-card warn">
+        <p class="status"><span class="dot" aria-hidden="true"></span>Alerte</p>
+        <div class="menubar" role="img" aria-label="Barre système : logo et texte « 9 min »"><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.6a10 10 0 0 1 14 0M8.5 16.3a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg><span class="indicator"><img src="images/logo.svg" alt="" width="20" height="20">9 min</span></div>
+        <figcaption><span class="value-line">Temps restant : <b>9 min</b></span>Une alerte vous prévient à 1&nbsp;h puis 15&nbsp;min avant la coupure.</figcaption>
       </figure>
-      <figure class="card">
-        <div class="shot"><img src="images/indicateur-vpn-off.svg" width="240" height="72" alt="Logo et texte « VPN off »"></div>
-        <figcaption><strong>VPN coupé</strong>La prochaine connexion repart de zéro.</figcaption>
+      <figure class="card status-card off">
+        <p class="status"><span class="dot" aria-hidden="true"></span>VPN déconnecté</p>
+        <div class="menubar" role="img" aria-label="Barre système : logo et texte « VPN off »"><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><svg class="sys" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.6a10 10 0 0 1 14 0M8.5 16.3a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg><span class="indicator"><img src="images/logo.svg" alt="" width="20" height="20">VPN off</span></div>
+        <figcaption><span class="value-line">État : <b>déconnecté</b></span>La prochaine connexion repart de zéro.</figcaption>
       </figure>
     </div>
   </section>
 
   <section id="fonctionnement">
-    <h2>Comment ça marche</h2>
-    <p class="sub">Aucun réglage : il se lance tout seul et se fait oublier.</p>
-    <ol class="steps">
-      <li>Chaque minute, il lit la <strong>durée de connexion</strong> que FortiClient affiche. La fin de session est donc exacte, même s'il démarre en cours de route.</li>
-      <li>Il affiche le <strong>temps restant</strong> avant la coupure (session de 8 h) dans la barre supérieure, ou la barre des menus sur Mac.</li>
-      <li>Il ouvre une <strong>alerte</strong> quand il reste 1 h, puis 15 min.</li>
+    <div class="section-head">
+      <div>
+      <p class="eyebrow">[ 03 ]</p>
+      <h2>Comment ça marche ?</h2>
+      </div>
+      <p class="sub">Simple, léger et efficace.</p>
+    </div>
+    <ol class="steps grid">
+      <li class="card"><span class="num">01 /</span><h3>Lecture de la durée</h3>L'outil interroge FortiClient chaque minute pour récupérer la durée de la session VPN.</li>
+      <li class="card"><span class="num">02 /</span><h3>Affichage du temps restant</h3>Le temps restant de votre session est affiché dans la barre système.</li>
+      <li class="card"><span class="num">03 /</span><h3>Alertes automatiques</h3>Une notification vous prévient à 1&nbsp;h puis 15&nbsp;min avant la coupure.</li>
     </ol>
   </section>
 
   <section id="prerequis">
-    <h2>Prérequis</h2>
-    <h3 class="os">Linux</h3>
-    <ul class="req">
-      <li>Ubuntu 22.04 ou plus récent, avec un bureau graphique (GNOME testé).</li>
-      <li>FortiClient installé dans <code class="inline">/opt/forticlient/</code> (testé avec la 7.4.3).</li>
-      <li>L'extension GNOME « AppIndicator » (activée par défaut sur Ubuntu) pour l'icône de la barre.</li>
-    </ul>
-    <h3 class="os">macOS</h3>
-    <ul class="req">
-      <li>macOS 11 ou plus récent, Intel ou Apple Silicon.</li>
-      <li>FortiClient avec son VPN installé (testé avec la 7.4.3) : forti-watch lit son état avec l'outil système <code class="inline">scutil</code>.</li>
-    </ul>
+    <div class="section-head">
+      <div>
+      <p class="eyebrow">[ 04 ]</p>
+      <h2>Prérequis</h2>
+      </div>
+      <p class="sub">Un bureau Linux ou un Mac, et FortiClient.</p>
+    </div>
+    <div class="req-grid">
+      <div class="card">
+        <h3 class="os"><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></svg>Linux</h3>
+        <ul class="req">
+          <li>Ubuntu 22.04 ou plus récent, avec un bureau graphique (GNOME testé).</li>
+          <li>FortiClient installé dans <code class="inline">/opt/forticlient/</code> (testé avec la 7.4.3).</li>
+          <li>L'extension GNOME « AppIndicator » (activée par défaut sur Ubuntu) pour l'icône de la barre.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="os"><svg aria-hidden="true" focusable="false" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>macOS</h3>
+        <ul class="req">
+          <li>macOS 11 ou plus récent, Intel ou Apple Silicon.</li>
+          <li>FortiClient avec son VPN installé (testé avec la 7.4.3) : forti-watch lit son état avec l'outil système <code class="inline">scutil</code>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="liens">
+    <div class="section-head">
+      <div>
+      <p class="eyebrow">[ 05 ]</p>
+      <h2>Liens utiles</h2>
+      </div>
+      <p class="sub">Tout pour bien démarrer.</p>
+    </div>
+    <div class="links-grid">
+      <a class="card link-card" href="https://github.com/loicjazon/forti-watch#readme">
+        <svg class="link-icon" aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5C4.5 4 8 4 12 6c4-2 7.5-2 10-.5V19c-2.5-1.5-6-1.5-10 .5-4-2-7.5-2-10-.5Z"/><path d="M12 6v13.5"/></svg>
+        <span><strong>README</strong>Guide complet d'installation et d'utilisation.</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="card link-card" href="https://github.com/loicjazon/forti-watch#fonctionnement">
+        <svg class="link-icon" aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
+        <span><strong>Documentation</strong>Fonctionnement détaillé, limites et test des alertes.</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="card link-card" href="https://github.com/loicjazon/forti-watch#désinstallation">
+        <svg class="link-icon" aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6"/></svg>
+        <span><strong>Désinstallation</strong>Comment supprimer forti-watch.</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="card link-card" href="https://github.com/loicjazon/forti-watch/blob/main/LICENSE">
+        <svg class="link-icon" aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M4 7h16M12 3l-1 1M6 7l-3 7a3 3 0 0 0 6 0L6 7M18 7l-3 7a3 3 0 0 0 6 0l-3-7"/></svg>
+        <span><strong>Licence</strong>Licence MIT, open source.</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <p>Documentation complète, limites et développement : <a href="https://github.com/loicjazon/forti-watch#readme">README</a>.</p>
-    <p>Mise à jour automatique : forti-watch cherche une nouvelle version toutes les 6 h et vérifie son empreinte SHA-256 avant de l'installer.</p>
-    <p>Désinstaller : <code class="inline">curl -fsSL https://raw.githubusercontent.com/loicjazon/forti-watch/main/install.sh | sh -s -- --uninstall</code></p>
-    <p>Licence <a href="https://github.com/loicjazon/forti-watch/blob/main/LICENSE">MIT</a>.</p>
+    <div class="footer-row">
+      <p class="footer-brand"><a class="brand" href="#top"><img src="images/logo.svg" alt="" width="24" height="24"><span>forti<span class="accent">-watch</span></span></a></p>
+      <nav class="footer-links" aria-label="Projet">
+        <a href="https://github.com/loicjazon/forti-watch"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.9.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>GitHub</a>
+        <a href="https://github.com/loicjazon/forti-watch/issues/new?labels=bug">Signaler un bug</a>
+        <a href="https://github.com/loicjazon/forti-watch/issues/new?labels=enhancement">Proposer une amélioration</a>
+      </nav>
+    </div>
+    <p class="footer-note">Mise à jour automatique : forti-watch cherche une nouvelle version toutes les 6 h et vérifie son empreinte SHA-256 avant de l'installer.</p>
   </div>
 </footer>
 
 <script>
-  var button = document.getElementById('copy');
-  button.addEventListener('click', function () {
-    var text = document.getElementById('cmd').textContent;
-    var done = function () {
-      button.textContent = 'Copié ✓';
-      setTimeout(function () { button.textContent = 'Copier'; }, 2000);
-    };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(done, function () {});
-    }
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    var label = button.querySelector('span') || button;
+    button.addEventListener('click', function () {
+      var text = document.querySelector('[data-cmd]').textContent;
+      var done = function () {
+        label.textContent = 'Copié ✓';
+        setTimeout(function () { label.textContent = 'Copier'; }, 2000);
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      }
+    });
   });
 
   // Numéro de la dernière release, pour le comparer à celui affiché par l'installateur.
