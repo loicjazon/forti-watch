@@ -62,19 +62,6 @@ La même commande sert pour Linux et macOS. Le script, sans `sudo` :
 Relancer la même commande met à jour vers la dernière version. Vous pouvez lire le script avant de l'exécuter :
 [`install.sh`](install.sh).
 
-## Mise à jour automatique
-
-Une fois installé, `forti-watch` se met à jour tout seul : 30 secondes après son démarrage puis toutes les 6 h, il
-cherche une release plus récente sur GitHub, télécharge le binaire, **vérifie son empreinte SHA-256**, remplace
-`~/.local/bin/forti-watch` et se relance. En cas d'échec (réseau, empreinte différente), la version installée reste
-intacte et l'essai est renouvelé plus tard.
-
-- Pour ne pas rejouer une alerte, la relance attend la fin de la session VPN quand il reste moins d'une heure ;
-  sinon elle a lieu à la prochaine ouverture de session.
-- Désactiver : définir `FORTI_WATCH_NO_UPDATE=1` dans l'environnement du lancement.
-- Les versions antérieures à cette fonction ne savent pas se mettre à jour : relancez une fois la commande
-  d'installation.
-
 ## Désinstallation
 
 ```bash
@@ -142,12 +129,11 @@ Organisation du code :
 
 | Fichier | Rôle |
 |---|---|
-| `src/main.rs` | Vérification chaque minute : état du VPN, session, indicateur, alerte, mise à jour |
+| `src/main.rs` | Vérification chaque minute : état du VPN, session, indicateur, alerte |
 | `src/linux/`, `src/macos/` | Interface propre à chaque système : boucle d'événements, indicateur, alerte |
 | `src/tray.rs` | Texte et menu de l'indicateur (fonctions pures testées) |
 | `src/session.rs` | Suivi de la session et des seuils (testé) |
 | `src/vpn/` | Lecture de `forticlient-cli vpn status` (Linux) et de `scutil --nc` (macOS), analyses testées |
-| `src/update.rs` | Mise à jour automatique |
 | `src/config.rs` | Commande lue, intervalle, durée de session, seuils, nom du binaire publié |
 | `install.sh` | Installateur : télécharge, vérifie et installe la dernière release |
 | `.github/workflows/` | CI (tests) et publication des releases |

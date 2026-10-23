@@ -22,8 +22,7 @@ cargo fmt --check                           # formatage
 cargo llvm-cov                              # couverture (cargo install cargo-llvm-cov ; rustup component add llvm-tools-preview)
 cargo build --release                       # binaire : target/release/forti-watch
 FORTI_WATCH_TEST_EVERY_MINUTE=1 cargo run   # mode test : une alerte par minute
-# Téléchargements par version (≠ installations : tests, réinstallations et vraies auto-updates comptent ;
-# les vérifications sans nouvelle version non, elles ne lisent que la redirection de releases/latest)
+# Téléchargements par version (≠ installations : les tests et les réinstallations comptent aussi)
 gh api repos/loicjazon/forti-watch/releases \
   --jq '.[] | .tag_name as $tag | .assets[] | select(.name | endswith(".sha256") | not) | "\($tag)\t\(.name)\t\(.download_count)"'
 ```
@@ -37,15 +36,14 @@ dossier monté pour ne pas mélanger les `target/`).
 
 | Fichier | Rôle |
 |---|---|
-| `src/main.rs` | Commun : construit la vérification de chaque minute (VPN, `Tracker`, indicateur, alerte, `Updater`) et la passe à `platform::run`. `platform` = `src/linux/` ou `src/macos/` selon `#[cfg(target_os)]` (`#[path]`) |
+| `src/main.rs` | Commun : construit la vérification de chaque minute (VPN, `Tracker`, indicateur, alerte) et la passe à `platform::run`. `platform` = `src/linux/` ou `src/macos/` selon `#[cfg(target_os)]` (`#[path]`) |
 | `src/linux/` | GTK : `run` (`gtk::init` puis `glib::timeout_add_seconds_local`), `Tray` (AppIndicator via `libappindicator`), `alert` (fenêtre personnalisée non bloquante), `clock` |
 | `src/macos/` | AppKit (`objc2`) : `run` (`NSApplication` « accessoire », sans Dock, `NSTimer` en `NSRunLoopCommonModes`), `Tray` (`NSStatusItem` + `logo-mono.svg` en image « template »), `alert` (`NSAlert` avec `logo.svg`, ouverte par un `NSTimer` de 0 s, une seule à la fois), `clock` (`libc::localtime_r`) |
 | `src/tray.rs` | Commun : `View`, `label`, `menu_lines`, **pures et testées** |
 | `src/session.rs` | `Tracker` : début de session (déduit de la durée FortiClient), seuils déjà notifiés. **Logique pure, sans GTK ni processus, entièrement testée** |
 | `src/vpn/` | `mod.rs` : `Status` et `read_status(cli, now)` de l'OS courant. `forticlient.rs` (Linux) : lance `forticlient-cli vpn status`, `parse_status` en extrait `Status::Connected { elapsed }` ou `Disconnected`. `scutil.rs` (macOS) : `parse_service_id`, `parse_scutil` (purs, **compilés et testés sur les deux OS**), `read_status` (faux scripts `sh`, macOS seulement) qui convertit `LastStatusChangeTime` par `mktime` |
-| `src/update.rs` | Mise à jour automatique. `Version`, `parse_latest_tag`, `is_newer`, `can_restart` sont **purs et testés** ; `check_and_install` = `find_latest` (redirection, non testé) + `install` (curl + `sha256sum`, sans dépendance ajoutée, testé avec une fausse release en `file://`) ; `Updater` (thread + `mpsc`, relance par `exec`) : `poll` et `handle` testés sur un `Updater` construit à la main, dont l'exécutable n'existe pas (une relance réussie remplacerait le processus de test) |
 | `src/test_support.rs` | Outils des tests uniquement (`#[cfg(test)]`) : `TestDir`, dossier temporaire supprimé à la fin du test |
-| `src/config.rs` | Commande lue (`forticlient-cli` / `scutil`, surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils, dépôt et cadence de mise à jour, `ASSET_NAME` et `CHECKSUM_COMMAND` par OS |
+| `src/config.rs` | Commande lue (`forticlient-cli` / `scutil`, surchargeable par `FORTI_WATCH_CLI`), intervalle, durée de session, seuils |
 | `docs/index.html` | Page vitrine GitHub Pages (`main` / `/docs`) : HTML + CSS inline, sans build, images dans `docs/images/`, polices chargées depuis Google Fonts (design « terminal », accent rouge, sombre). La commande d'installation y est dupliquée du README : les garder identiques. Les cartes « Liens utiles » pointent vers les titres `#fonctionnement` et `#désinstallation` du README : les renommer casse ces liens |
 | `install.sh` | Installateur POSIX `sh` pour les deux OS (`uname -s`) : télécharge `releases/latest/download/…` (surchargeable par `FORTI_WATCH_DOWNLOAD_URL`, `file://` accepté pour tester), vérifie le SHA-256 (`sha256sum` / `shasum -a 256`), installe dans `~/.local/bin`, active l'autostart (`.desktop` sous Linux, LaunchAgent `io.github.loicjazon.forti-watch` sur macOS) |
 | `.github/workflows/ci.yml` | Tests (fmt, clippy `-D warnings`, test) dans un conteneur `ubuntu:22.04` sur push / PR vers `main`, plus un job `test-macos` (clippy, test) sur `macos-latest`. Les tests passent par `cargo llvm-cov` : tableau de couverture dans le résumé du run, rapport HTML en artefact `couverture-html`. Sur push vers `main`, le job `badge` écrit `coverage.json` (format shields.io) sur la branche orpheline `badges`, lue par le badge du README |
@@ -57,11 +55,6 @@ Règles de fonctionnement à ne pas casser :
   si plusieurs seuils sont franchis d'un coup, une seule alerte.
 - Une erreur de lecture de la CLI (`Err`) veut dire « état inconnu », **pas** « déconnecté » : on garde
   l'état et on n'affiche l'erreur qu'une fois.
-- Mise à jour auto : la dernière version se lit dans la redirection de `…/releases/latest` (pas d'API GitHub), le
-  binaire est téléchargé à côté de l'exécutable puis renommé par-dessus (atomique), SHA-256 obligatoire, échec =
-  binaire intact. La relance (`exec`) est **différée** quand la session a ≤ 60 min restantes : le `Tracker` repart de
-  zéro et rejouerait une alerte. Désactivée par `FORTI_WATCH_NO_UPDATE`, en mode test, et en build debug sauf si
-  `FORTI_WATCH_UPDATE_URL` est défini (URL de base, pour tester avec un faux serveur de releases).
 - Garder la logique dans `session.rs` (testable) et l'IHM/processus en périphérie (`linux/`, `macos/`, `vpn/`).
   Les analyses pures (`tray.rs`, `vpn/forticlient.rs`, `vpn/scutil.rs`) se compilent sur les deux OS pour que
   chaque CI les teste (`#![cfg_attr(not(target_os = …), allow(dead_code))]`).
@@ -121,9 +114,6 @@ Règles de fonctionnement à ne pas casser :
   Ubuntu (sans extension AppIndicator) n'affichent rien.
 - **`timeout` n'existe pas sur macOS** : lancer le binaire en arrière-plan puis `pkill -x forti-watch`. Installé, il
   tourne sous launchd : `launchctl print gui/$(id -u)/io.github.loicjazon.forti-watch`.
-- **`current_exe()` après une mise à jour** : le binaire remplacé par `rename`, Linux renvoie `… (deleted)`. `Updater`
-  lit donc le chemin au démarrage. Un test de bout en bout demande ~2 min : la recherche part au tick de 60 s, son
-  résultat n'est lu au tick suivant (`timeout 140`), et l'instance doit tourner depuis une **copie** du binaire.
 - **« Text file busy » dans les tests** : exécuter un script juste écrit échoue parfois (ETXTBSY), car un
   processus lancé au même moment par un autre test hérite du fichier encore ouvert en écriture. Passer par
   `TestDir::write_script`, qui lance le script une première fois jusqu'à réussir. Vérifier l'absence de test

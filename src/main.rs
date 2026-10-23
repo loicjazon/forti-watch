@@ -9,15 +9,13 @@ mod session;
 #[cfg(test)]
 mod test_support;
 mod tray;
-mod update;
 mod vpn;
 
 use platform::{Tray, clock};
 use session::{Alert, Tracker, format_duration};
 use std::env;
-use std::time::{Instant, SystemTime};
+use std::time::SystemTime;
 use tray::View;
-use update::Updater;
 
 fn main() {
     // Mode test : `FORTI_WATCH_TEST_EVERY_MINUTE=1 forti-watch` alerte à chaque minute au lieu de 1 h / 15 min.
@@ -32,8 +30,6 @@ fn main() {
         env::var("FORTI_WATCH_CLI").unwrap_or_else(|_| String::from(config::FORTICLIENT_CLI));
     // Dernière erreur de lecture affichée : on ne la répète pas à chaque minute.
     let mut last_error: Option<String> = None;
-    // `None` quand la mise à jour automatique est désactivée (voir `Updater::from_env`).
-    let mut updater = Updater::from_env(Instant::now());
 
     // L'indicateur se crée une fois l'interface initialisée, d'où la préparation passée à `run`.
     platform::run(move || {
@@ -60,11 +56,6 @@ fn main() {
                     View::Unknown
                 }
             };
-
-            if let Some(updater) = updater.as_mut() {
-                let remaining_minutes = tracker.current(now).map(|info| info.remaining_minutes);
-                updater.poll(Instant::now(), remaining_minutes);
-            }
 
             if let Some(tray) = tray.as_mut() {
                 let cut_at_text = match &view {
